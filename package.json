@@ -37,7 +37,7 @@
     "test": "pnpm -r test"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "packageManager": "pnpm@11.6.0"
 }
