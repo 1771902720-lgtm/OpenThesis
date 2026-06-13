@@ -1,0 +1,25 @@
+{
+  "name": "@openthesis/cli",
+  "version": "0.1.0",
+  "description": "OpenThesis CLI — thesis parse / thesis build commands",
+  "type": "module",
+  "bin": {
+    "thesis": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "echo 'Tests not yet configured'"
+  },
+  "dependencies": {
+    "@openthesis/document-schema": "workspace:*",
+    "@openthesis/template-parser": "workspace:*",
+    "@openthesis/docx-renderer": "workspace:*",
+    "@openthesis/equation-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.5"
+  }
+}

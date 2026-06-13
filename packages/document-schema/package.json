@@ -1,0 +1,24 @@
+{
+  "name": "@openthesis/document-schema",
+  "version": "0.1.0",
+  "description": "Document domain models — thesis, journal article, and official document (公文) type definitions",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "echo 'Tests not yet configured'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5"
+  }
+}

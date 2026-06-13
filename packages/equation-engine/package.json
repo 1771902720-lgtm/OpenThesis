@@ -1,0 +1,23 @@
+{
+  "name": "@openthesis/equation-engine",
+  "version": "0.1.0",
+  "description": "LaTeX → Office Math (OMML) equation rendering engine for DOCX",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "echo 'Tests not yet configured'"
+  },
+  "devDependencies": {
+    "typescript": "^5.5"
+  }
+}

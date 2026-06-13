@@ -1,0 +1,29 @@
+{
+  "name": "@openthesis/template-parser",
+  "version": "0.1.0",
+  "description": "Parse any university .docx thesis template into a structured JSON style DSL",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "echo 'Tests not yet configured'"
+  },
+  "dependencies": {
+    "@openthesis/document-schema": "workspace:*",
+    "jszip": "^3.10",
+    "fast-xml-parser": "^5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.5"
+  }
+}

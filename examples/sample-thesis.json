@@ -1,0 +1,32 @@
+{
+  "title": "DRM阻尼模式对比研究报告",
+  "report_header": "北京科技大学博士/硕士学位论文",
+  "cover_blocks": [
+    { "type": "spacer", "lines": 6 },
+    { "type": "centered_text", "text": "北京科技大学", "font_size_pt": 26, "bold": true },
+    { "type": "centered_text", "text": "University of Science and Technology Beijing", "font_size_pt": 16, "bold": false },
+    { "type": "spacer", "lines": 2 },
+    { "type": "centered_text", "text": "动态松弛法阻尼模式对比研究报告", "font_size_pt": 22, "bold": true },
+    { "type": "spacer", "lines": 1 },
+    { "type": "centered_text", "text": "启发式算法 vs Zhang-Yu 算法 vs MLP 神经网络预测", "font_size_pt": 16, "bold": false },
+    { "type": "spacer", "lines": 3 },
+    { "type": "centered_text", "text": "学科专业：力学 / 计算固体力学", "font_size_pt": 14, "bold": false },
+    { "type": "centered_text", "text": "研究方向：动态松弛法自适应阻尼优化", "font_size_pt": 14, "bold": false },
+    { "type": "centered_text", "text": "日    期：2026年06月13日", "font_size_pt": 14, "bold": false },
+    { "type": "page_break" }
+  ],
+  "body_blocks": [
+    { "type": "heading1", "text": "1  研究背景与目的" },
+    { "type": "paragraph", "text": "动态松弛法（Dynamic Relaxation Method, DRM）是一种求解非线性静力平衡方程的显式拟动力方法，广泛应用于索膜结构、大变形壳体及弹塑性固体力学问题。阻尼系数的选择对DRM的收敛效率具有决定性影响：阻尼过小会导致长时间振荡，阻尼过大则收敛缓慢。" },
+    { "type": "heading1", "text": "2  研究方法" },
+    { "type": "heading2", "text": "2.1  动态松弛法基本格式" },
+    { "type": "paragraph", "text": "中心差分时间积分格式的速度-位移递推关系为：" },
+    { "type": "equation", "latex": "u_{n+1} = u_n + c_n(u_n - u_{n-1}) + alpha_n * dt^2 * M^{-1} * R_n" },
+    { "type": "heading1", "text": "3  计算结果与分析" },
+    { "type": "heading2", "text": "3.1  弹性工况" },
+    { "type": "paragraph", "text": "在弹性工况下，三种阻尼策略均能在200步内快速收敛。MLP神经网络阻尼收敛最快，相比启发式方法加速约1.40倍。" },
+    { "type": "table", "caption": "表3-1  弹性工况收敛性能对比", "headers": ["阻尼方法", "收敛", "步数", "加速比"], "data": [["启发式阻尼", "是", "184", "1.00×"], ["Zhang-Yu 阻尼", "是", "152", "1.21×"], ["MLP 神经网络阻尼", "是", "131", "1.40×"]] },
+    { "type": "heading1", "text": "4  结论" },
+    { "type": "paragraph", "text": "MLP神经网络阻尼在弹性问题中实现了1.40倍的加速效果，验证了机器学习驱动自适应阻尼的有效性。在弹塑性问题中加速效果减弱，表明训练数据分布的覆盖范围对MLP泛化性能至关重要。" }
+  ]
+}

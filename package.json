@@ -1,0 +1,43 @@
+{
+  "name": "openthesis",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered Document Template Engine — Parse any .docx template, write structured JSON, export submission-ready DOCX. Supports thesis, journal articles, and official documents.",
+  "keywords": [
+    "docx",
+    "template",
+    "thesis",
+    "academic",
+    "journal",
+    "official-document",
+    "word",
+    "office",
+    "typescript",
+    "cli",
+    "document-generator",
+    "template-engine",
+    "university",
+    "paper"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openthesis/openthesis.git"
+  },
+  "homepage": "https://github.com/openthesis/openthesis#readme",
+  "bugs": {
+    "url": "https://github.com/openthesis/openthesis/issues"
+  },
+  "author": "OpenThesis Contributors",
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "clean": "pnpm -r clean",
+    "cli": "node packages/cli/dist/index.js",
+    "test": "pnpm -r test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@11.6.0"
+}
