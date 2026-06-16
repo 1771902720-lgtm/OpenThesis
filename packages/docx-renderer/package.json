@@ -1,6 +1,6 @@
 {
   "name": "@openthesis/docx-renderer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Template-driven DOCX renderer — converts structured JSON content into submission-ready .docx using a parsed style template",
   "keywords": ["docx", "renderer", "template", "word", "document-generator", "typescript", "thesis"],
   "repository": { "type": "git", "url": "https://github.com/1771902720-lgtm/OpenThesis.git", "directory": "packages/docx-renderer" },

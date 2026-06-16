@@ -1,6 +1,6 @@
 {
   "name": "@openthesis/document-schema",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Document domain models — thesis, journal article, and official document (公文) TypeScript type definitions",
   "keywords": ["docx", "thesis", "journal", "official-document", "typescript", "schema", "type-definitions"],
   "repository": { "type": "git", "url": "https://github.com/1771902720-lgtm/OpenThesis.git", "directory": "packages/document-schema" },

@@ -1,6 +1,6 @@
 {
   "name": "@openthesis/equation-engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "LaTeX → Unicode (V1) / OMML Office Math (V3) equation rendering for DOCX generation",
   "keywords": ["latex", "equation", "omml", "mathml", "docx", "office-math", "typescript"],
   "repository": { "type": "git", "url": "https://github.com/1771902720-lgtm/OpenThesis.git", "directory": "packages/equation-engine" },

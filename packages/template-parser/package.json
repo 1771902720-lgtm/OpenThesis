@@ -1,6 +1,6 @@
 {
   "name": "@openthesis/template-parser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Parse any .docx template into structured JSON style DSL — resolves style inheritance, extracts fonts, sizes, margins, alignment",
   "keywords": ["docx", "template", "parser", "word", "office", "styles", "typescript", "openxml"],
   "repository": { "type": "git", "url": "https://github.com/1771902720-lgtm/OpenThesis.git", "directory": "packages/template-parser" },
