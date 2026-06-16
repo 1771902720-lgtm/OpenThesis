@@ -1,0 +1,26 @@
+{
+  "type": "thesis",
+  "meta": {
+    "title": "图片嵌入测试",
+    "degree": "master"
+  },
+  "cover": [
+    { "type": "centered_text", "text": "图片嵌入测试", "font_size_pt": 24, "bold": true },
+    { "type": "page_break" }
+  ],
+  "sections": [
+    {
+      "id": "intro",
+      "title": "第一章  图片测试",
+      "content": [
+        { "type": "paragraph", "text": "下面是嵌入的图片：" },
+        {
+          "type": "figure",
+          "path": "figures/damping_mode_comparison.png",
+          "caption": "图1-1  阻尼策略收敛曲线对比"
+        },
+        { "type": "paragraph", "text": "图片上面和下面应该有适当的间距和居中对齐。" }
+      ]
+    }
+  ]
+}

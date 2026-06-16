@@ -1,12 +1,16 @@
 <p align="center">
-  <h1 align="center">OpenThesis</h1>
-  <p align="center"><strong>AI-powered Document Template Engine</strong></p>
-  <p align="center">
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-    <img src="https://img.shields.io/badge/status-V1-brightgreen" alt="Status">
-    <img src="https://img.shields.io/badge/node-%3E%3D18-success" alt="Node">
-    <img src="https://img.shields.io/badge/pnpm-11.x-orange" alt="pnpm">
-  </p>
+  <img src="assets/banner.png" alt="OpenThesis Banner" width="800" />
+</p>
+
+<p align="center">
+  <strong>AI-powered Document Template Engine</strong>
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <img src="https://img.shields.io/badge/status-V2-blue" alt="Status">
+  <img src="https://img.shields.io/badge/node-%3E%3D18-success" alt="Node">
+  <img src="https://img.shields.io/badge/pnpm-11.x-orange" alt="pnpm">
 </p>
 
 ---
@@ -19,35 +23,49 @@ For **university theses**, **journal articles**, and **government official docum
 
 ## Why?
 
-| Existing tools | OpenThesis |
-|---|---|
-| Template **filling** (docxtemplater) | Template **understanding** — knows what a heading, abstract, or 发文字号 IS |
-| One template format hardcoded | Parse **any** `.docx` template → JSON style DSL |
-| Formatting parameters scattered in code | All formatting driven by the parsed template |
-| Markdown → LaTeX (pandoc/ThesisForge) | Markdown → **DOCX** (what 95% of Chinese universities require) |
-| Single document type | **Thesis + Journal + 公文** — one engine, three domains |
+| Existing tools                          | OpenThesis                                                              |
+| --------------------------------------- | ----------------------------------------------------------------------- |
+| Template **filling** (docxtemplater)    | Template **understanding** — knows what a heading, abstract, or 发文字号 IS |
+| One template format hardcoded           | Parse **any** `.docx` template → JSON style DSL                         |
+| Formatting parameters scattered in code | All formatting driven by the parsed template                            |
+| Markdown → LaTeX (pandoc/ThesisForge)   | Markdown → **DOCX** (what 95% of Chinese universities require)          |
+| Single document type                    | **Thesis + Journal + 公文** — one engine, three domains                   |
 
 ## What it does
 
-```
-  Any .docx Template              Your Content (JSON)
-  ─────────────────               ──────────────────
-  清华博士论文模板.docx             thesis-content.json
-  Elsevier 模板.docx                journal-content.json
-  公文标准模板.docx                  official-content.json
-         │                                │
-         ▼                                ▼
-   template-parser                   document-schema
-   (extracts styles,               (validates structure,
-    resolves inheritance)            knows document semantics)
-         │                                │
-         └────────────┬───────────────────┘
-                      ▼
-               docx-renderer
-          (template-driven DOCX generation)
-                      │
-                      ▼
-             submission-ready.docx
+```mermaid
+graph TD
+    %% Nodes and Groups
+    subgraph Inputs ["1. Input Sources"]
+        A["📄 Word Template (.docx) <br> (e.g. Tsinghua Thesis, Elsevier, GB/T 9704)"]
+        B["💾 Structured Content (.json) <br> (e.g. thesis-content, journal-content)"]
+    end
+
+    subgraph Core ["2. Processing Engine (OpenThesis Core)"]
+        C["⚙️ @openthesis/template-parser <br> (Extracts styles & layouts)"]
+        D["🔍 @openthesis/document-schema <br> (Validates semantic document structures)"]
+        E["🎨 @openthesis/docx-renderer <br> (Generates final layout dynamically)"]
+    end
+
+    subgraph Output ["3. Final Output"]
+        F["🎓 Submission-Ready Document (.docx) <br> (High-fidelity typesetting)"]
+    end
+
+    %% Flows
+    A --> C
+    B --> D
+    C --> E
+    D --> E
+    E --> F
+
+    %% Styling
+    classDef inputStyle fill:#f4f5f7,stroke:#c1c7d0,stroke-width:2px,color:#172b4d;
+    classDef coreStyle fill:#deebff,stroke:#0052cc,stroke-width:2px,color:#0747a6;
+    classDef outputStyle fill:#e6fcf5,stroke:#087f5b,stroke-width:2px,color:#095b42;
+
+    class A,B inputStyle;
+    class C,D,E coreStyle;
+    class F outputStyle;
 ```
 
 ## Quick Start
@@ -70,11 +88,11 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 
 ## Three Document Types, One Engine
 
-| `--type` | Use Case | Key Features |
-|----------|----------|--------------|
-| `thesis` | 学士/硕士/博士论文 | Cover page, abstract CN/EN, chapters, TOC, references, declaration, appendices |
-| `journal` | 学术期刊投稿 | Authors + affiliations, corresponding author, funding, IMRaD structure, references |
-| `official` | 党政机关公文 (GB/T 9704) | Red header, 发文字号, 签发人, 主送/抄送, 附件, signature block |
+| `--type`   | Use Case           | Key Features                                                                       |
+| ---------- | ------------------ | ---------------------------------------------------------------------------------- |
+| `thesis`   | 学士/硕士/博士论文         | Cover page, abstract CN/EN, chapters, TOC, references, declaration, appendices     |
+| `journal`  | 学术期刊投稿             | Authors + affiliations, corresponding author, funding, IMRaD structure, references |
+| `official` | 党政机关公文 (GB/T 9704) | Red header, 发文字号, 签发人, 主送/抄送, 附件, signature block                                  |
 
 ### 公文示例 (Official Document)
 
@@ -93,13 +111,13 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 
 ## Packages
 
-| Package | npm | Description |
-|---------|-----|-------------|
-| `@openthesis/document-schema` | — | Domain models for thesis, journal, official documents |
-| `@openthesis/template-parser` | — | Parse `.docx` → JSON style DSL with inheritance resolution |
-| `@openthesis/docx-renderer` | — | Template-driven DOCX renderer (dolanmiu/docx) |
-| `@openthesis/equation-engine` | — | LaTeX → plain text (V1) / OMML (V3) |
-| `@openthesis/cli` | — | `thesis parse|build|init` command-line interface |
+| Package                       | npm | Description                                                |
+| ----------------------------- | --- | ---------------------------------------------------------- |
+| `@openthesis/document-schema` | —   | Domain models for thesis, journal, official documents      |
+| `@openthesis/template-parser` | —   | Parse `.docx` → JSON style DSL with inheritance resolution |
+| `@openthesis/docx-renderer`   | —   | Template-driven DOCX renderer (dolanmiu/docx)              |
+| `@openthesis/equation-engine` | —   | LaTeX → plain text (V1) / OMML (V3)                        |
+| `@openthesis/cli`             | —   | `thesis parse                                              |
 
 ## Features
 
@@ -144,14 +162,14 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 
 ## Roadmap
 
-| Phase | Goal | Status |
-|-------|------|--------|
-| V1 | Core engine: parse + render + CLI | ✅ Done |
-| V2 | Image embedding, Markdown parser, double-column | 🚧 Planned |
-| V3 | LaTeX → OMML equation engine | 🚧 Planned |
-| V4 | ML-based template layout understanding | 📋 Future |
-| V5 | AI Agent: auto-generate thesis content | 📋 Future |
-| SaaS | Template marketplace (community-contributed) | 📋 Future |
+| Phase | Goal                                            | Status     |
+| ----- | ----------------------------------------------- | ---------- |
+| V1    | Core engine: parse + render + CLI               | ✅ Done     |
+| V2    | Image embedding, Markdown parser, double-column | 🚧 Planned |
+| V3    | LaTeX → OMML equation engine                    | 🚧 Planned |
+| V4    | ML-based template layout understanding          | 📋 Future  |
+| V5    | AI Agent: auto-generate thesis content          | 📋 Future  |
+| SaaS  | Template marketplace (community-contributed)    | 📋 Future  |
 
 ## Contributing
 

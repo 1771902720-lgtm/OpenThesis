@@ -300,8 +300,28 @@ function mergeStyles(base: RawStyle, override: RawStyle): RawStyle {
     ...override,
     styleId: override.styleId,  // keep the override's ID
     name: override.name || base.name,
-    pPr: { ...base.pPr, ...override.pPr },
+    pPr: mergeParagraphProps(base.pPr, override.pPr),
     rPr: { ...base.rPr, ...override.rPr },
+  };
+}
+
+/** Deep-merge paragraph properties so nested indent/spacing are not lost */
+function mergeParagraphProps(
+  base?: RawParagraphProps,
+  override?: RawParagraphProps,
+): RawParagraphProps | undefined {
+  if (!base && !override) return undefined;
+  if (!base) return override;
+  if (!override) return base;
+  return {
+    ...base,
+    ...override,
+    indent: (base.indent || override.indent)
+      ? { ...base.indent, ...override.indent }
+      : undefined,
+    spacing: (base.spacing || override.spacing)
+      ? { ...base.spacing, ...override.spacing }
+      : undefined,
   };
 }
 
@@ -391,12 +411,27 @@ function extractPageSettings(parsed: any): PageSettings {
     if (!isNaN(r)) margins.right = r;
   }
 
-  const headerDistance = sectPr['w:headerReference']
-    ? undefined  // we don't extract distance here, just mark existence
-    : undefined;
-  const footerDistance = sectPr['w:footerReference'] ? undefined : undefined;
+  // Extract header/footer distances from pgMar attributes
+  let headerDistance: number | undefined;
+  let footerDistance: number | undefined;
+  if (pgMar) {
+    const hd = parseInt(pgMar['@_w:header']);
+    if (!isNaN(hd)) headerDistance = hd;
+    const fd = parseInt(pgMar['@_w:footer']);
+    if (!isNaN(fd)) footerDistance = fd;
+  }
 
-  return { width, height, margins, headerDistance, footerDistance };
+  const cols = sectPr['w:cols'];
+  let columns = 1;
+  let columnGutter: number | undefined;
+  if (cols) {
+    const num = parseInt(cols['@_w:num']);
+    if (!isNaN(num)) columns = num;
+    const space = parseInt(cols['@_w:space']);
+    if (!isNaN(space)) columnGutter = space;
+  }
+
+  return { width, height, margins, headerDistance, footerDistance, columns, columnGutter };
 }
 
 function getDefaultPageSettings(): PageSettings {

@@ -363,3 +363,6 @@ export interface LegacyDocumentJSON {
   cover_blocks: ContentBlock[];
   body_blocks: ContentBlock[];
 }
+
+export type OpenThesisDocument = ThesisDocument | JournalArticle | OfficialDocument;
+
