@@ -197,9 +197,9 @@ function renderEquation(
   _template: DocumentTemplate,
   block: ContentBlock & { latex: string; number?: string },
 ): Paragraph {
-  // For now, render as plain text italic (V3 will add OMML)
+  // V2: convert LaTeX to Unicode with proper subscripts/superscripts/operators
   const style = resolveStyle(_template, 'equation');
-  const equationText = block.latex;
+  const equationText = convertLatexToUnicode(block.latex);
   const numberSuffix = block.number ? `    (${block.number})` : '';
 
   return new Paragraph({
@@ -217,6 +217,81 @@ function renderEquation(
     alignment: AlignmentType.CENTER,
     spacing: { before: 120, after: 120, line: style.lineSpacing || 312 },
   });
+}
+
+// ── Embedded LaTeX → Unicode converter (V2) ─────────────────
+// Full engine with OMML support lives in @openthesis/equation-engine
+
+const SUPERSCRIPTS: Record<string, string> = {
+  '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹',
+  '+':'⁺','-':'⁻','=':'⁼','(':'⁽',')':'⁾',
+  'a':'ᵃ','b':'ᵇ','c':'ᶜ','d':'ᵈ','e':'ᵉ','f':'ᶠ','g':'ᵍ','h':'ʰ',
+  'i':'ⁱ','j':'ʲ','k':'ᵏ','l':'ˡ','m':'ᵐ','n':'ⁿ','o':'ᵒ','p':'ᵖ',
+  'r':'ʳ','s':'ˢ','t':'ᵗ','u':'ᵘ','v':'ᵛ','w':'ʷ','x':'ˣ','y':'ʸ','z':'ᶻ',
+  'A':'ᴬ','B':'ᴮ','D':'ᴰ','E':'ᴱ','G':'ᴳ','H':'ᴴ','I':'ᴵ','J':'ᴶ',
+  'K':'ᴷ','L':'ᴸ','M':'ᴹ','N':'ᴺ','O':'ᴼ','P':'ᴾ','R':'ᴿ','T':'ᵀ',
+  'U':'ᵁ','V':'ⱽ','W':'ᵂ',
+  'α':'ᵅ','β':'ᵝ','γ':'ᵞ','δ':'ᵟ','ε':'ᵋ','θ':'ᶿ','φ':'ᵠ','χ':'ᵡ',
+};
+
+const SUBSCRIPTS: Record<string, string> = {
+  '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉',
+  '+':'₊','-':'₋','=':'₌','(':'₍',')':'₎',
+  'a':'ₐ','e':'ₑ','h':'ₕ','i':'ᵢ','j':'ⱼ','k':'ₖ','l':'ₗ',
+  'm':'ₘ','n':'ₙ','o':'ₒ','p':'ₚ','r':'ᵣ','s':'ₛ','t':'ₜ',
+  'u':'ᵤ','v':'ᵥ','x':'ₓ',
+  'β':'ᵦ','γ':'ᵧ','ρ':'ᵨ','φ':'ᵩ','χ':'ᵪ',
+};
+
+function charMap(text: string, map: Record<string, string>): string {
+  return [...text].map(c => map[c] || c).join('');
+}
+
+function convertLatexToUnicode(latex: string): string {
+  return latex
+    // Greek uppercase
+    .replace(/\\Gamma/g,'Γ').replace(/\\Delta/g,'Δ').replace(/\\Theta/g,'Θ')
+    .replace(/\\Lambda/g,'Λ').replace(/\\Xi/g,'Ξ').replace(/\\Pi/g,'Π')
+    .replace(/\\Sigma/g,'Σ').replace(/\\Upsilon/g,'Υ').replace(/\\Phi/g,'Φ')
+    .replace(/\\Psi/g,'Ψ').replace(/\\Omega/g,'Ω')
+    // Greek lowercase
+    .replace(/\\alpha/g,'α').replace(/\\beta/g,'β').replace(/\\gamma/g,'γ')
+    .replace(/\\delta/g,'δ').replace(/\\epsilon/g,'ε').replace(/\\varepsilon/g,'ε')
+    .replace(/\\zeta/g,'ζ').replace(/\\eta/g,'η').replace(/\\theta/g,'θ')
+    .replace(/\\vartheta/g,'ϑ').replace(/\\iota/g,'ι').replace(/\\kappa/g,'κ')
+    .replace(/\\lambda/g,'λ').replace(/\\mu/g,'μ').replace(/\\nu/g,'ν')
+    .replace(/\\xi/g,'ξ').replace(/\\pi/g,'π').replace(/\\rho/g,'ρ')
+    .replace(/\\sigma/g,'σ').replace(/\\tau/g,'τ').replace(/\\upsilon/g,'υ')
+    .replace(/\\phi/g,'φ').replace(/\\varphi/g,'φ').replace(/\\chi/g,'χ')
+    .replace(/\\psi/g,'ψ').replace(/\\omega/g,'ω')
+    // Operators & relations
+    .replace(/\\infty/g,'∞').replace(/\\partial/g,'∂').replace(/\\nabla/g,'∇')
+    .replace(/\\int/g,'∫').replace(/\\sum/g,'Σ').replace(/\\prod/g,'Π')
+    .replace(/\\sqrt/g,'√').replace(/\\propto/g,'∝')
+    .replace(/\\times/g,'×').replace(/\\cdot/g,'·')
+    .replace(/\\pm/g,'±').replace(/\\mp/g,'∓')
+    .replace(/\\leq/g,'≤').replace(/\\geq/g,'≥')
+    .replace(/\\neq/g,'≠').replace(/\\approx/g,'≈')
+    .replace(/\\equiv/g,'≡').replace(/\\sim/g,'∼')
+    .replace(/\\parallel/g,'∥').replace(/\\perp/g,'⊥')
+    .replace(/\\|/g,'‖')
+    // Structures
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)')
+    .replace(/\\text\{([^}]+)\}/g, '$1')
+    .replace(/\\mathrm\{([^}]+)\}/g, '$1')
+    .replace(/\\mathbf\{([^}]+)\}/g, '$1')
+    .replace(/\\bar\{([^}]+)\}/g, '$1̄')
+    .replace(/\\hat\{([^}]+)\}/g, '$1̂')
+    .replace(/\\tilde\{([^}]+)\}/g, '$1̃')
+    .replace(/\\vec\{([^}]+)\}/g, '$1⃗')
+    // Superscript / subscript (handles multi-char like ^{n+1}, _{max})
+    .replace(/\^\{([^}]+)\}/g, (_: string, p1: string) => charMap(p1, SUPERSCRIPTS))
+    .replace(/_\{([^}]+)\}/g, (_: string, p1: string) => charMap(p1, SUBSCRIPTS))
+    // Clean up
+    .replace(/[{}]/g, '')
+    .replace(/\\,/g, ' ').replace(/\\;/g, '  ')
+    .replace(/\\quad/g, '    ').replace(/\\qquad/g, '        ')
+    .trim();
 }
 
 function renderTable(
