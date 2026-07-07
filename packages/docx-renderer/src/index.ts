@@ -27,6 +27,12 @@ import type {
 } from '@openthesis/document-schema';
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { resolve, extname, isAbsolute, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import JSZip from 'jszip';
+
+// ESM-compatible __dirname
+const _filename = fileURLToPath(import.meta.url);
+const _dirname = dirname(_filename);
 
 // ── Renderer Config ───────────────────────────────────────
 
@@ -49,27 +55,31 @@ export interface RenderOptions {
 
 const DEFAULT_STYLES: Record<string, ParagraphStyle> = {
   heading1: {
-    font: { name: 'Times New Roman', eastAsia: '黑体', size: 30, bold: true },
-    paragraph: { alignment: 'center', spaceBefore: 340, spaceAfter: 340 },
+    // GB/T 9704-2012: 一级标题用3号黑体（16pt）
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 32, bold: true },
+    paragraph: { alignment: 'left', spaceBefore: 340, spaceAfter: 340 },
     lineSpacing: 312,
   },
   heading2: {
-    font: { name: 'Times New Roman', eastAsia: '黑体', size: 28, bold: true },
+    // GB/T 9704-2012: 二级标题用3号楷体（16pt）
+    font: { name: 'Times New Roman', eastAsia: '楷体', size: 32, bold: true },
     paragraph: { alignment: 'left', spaceBefore: 260, spaceAfter: 260 },
     lineSpacing: 312,
   },
   heading3: {
-    font: { name: 'Times New Roman', eastAsia: '黑体', size: 26, bold: true },
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 28, bold: true },
     paragraph: { alignment: 'left', spaceBefore: 200, spaceAfter: 200 },
     lineSpacing: 312,
   },
   paragraph: {
-    font: { name: 'Times New Roman', eastAsia: '宋体', size: 24 },
+    // GB/T 9704-2012: 正文用3号仿宋体（16pt）
+    font: { name: 'Times New Roman', eastAsia: '仿宋', size: 32 },
     paragraph: { alignment: 'justified', firstLineIndent: convertMillimetersToTwip(7.4) },
     lineSpacing: 312,
   },
   paragraph_no_indent: {
-    font: { name: 'Times New Roman', eastAsia: '宋体', size: 24 },
+    // GB/T 9704-2012: 正文用3号仿宋体（16pt）
+    font: { name: 'Times New Roman', eastAsia: '仿宋', size: 32 },
     paragraph: { alignment: 'left' },
     lineSpacing: 312,
   },
@@ -79,7 +89,7 @@ const DEFAULT_STYLES: Record<string, ParagraphStyle> = {
     lineSpacing: 312,
   },
   equation: {
-    font: { name: 'Times New Roman', eastAsia: '宋体', size: 24, italic: true },
+    font: { name: 'Times New Roman', eastAsia: '仿宋', size: 32, italic: true },
     paragraph: { alignment: 'center' },
     lineSpacing: 312,
   },
@@ -90,8 +100,14 @@ const DEFAULT_STYLES: Record<string, ParagraphStyle> = {
 /**
  * Resolve the ParagraphStyle for a given block type.
  * Priority: template.styles → defaults
+ * For official documents, always use GB/T 9704-2012 DEFAULT_STYLES (ignore thesis template).
  */
-function resolveStyle(template: DocumentTemplate, blockType: BlockType): ParagraphStyle {
+function resolveStyle(template: DocumentTemplate, blockType: BlockType, docType?: string): ParagraphStyle {
+  // 公文强制使用 GB/T 9704-2012 标准，不走论文模板样式
+  if (docType === 'official') {
+    return DEFAULT_STYLES[blockType] || DEFAULT_STYLES['paragraph'];
+  }
+
   // Look up via role mapping
   const styleId = Object.entries(template.styleRoles).find(
     ([, role]) => role === blockType,
@@ -110,8 +126,9 @@ function resolveStyle(template: DocumentTemplate, blockType: BlockType): Paragra
 function renderHeading(
   template: DocumentTemplate,
   block: ContentBlock & { text: string; number?: string },
+  docType?: string,
 ): Paragraph {
-  const style = resolveStyle(template, block.type);
+  const style = resolveStyle(template, block.type, docType);
   const numberPrefix = block.number ? `${block.number}  ` : '';
   return new Paragraph({
     children: [
@@ -139,8 +156,9 @@ function renderHeading(
 function renderParagraph(
   template: DocumentTemplate,
   block: ContentBlock & { text: string },
+  docType?: string,
 ): Paragraph {
-  const style = resolveStyle(template, block.type);
+  const style = resolveStyle(template, block.type, docType);
   return new Paragraph({
     children: [
       new TextRun({
@@ -170,8 +188,9 @@ function renderParagraph(
 function renderCenteredText(
   template: DocumentTemplate,
   block: ContentBlock & { text: string; font_size_pt?: number; bold?: boolean },
+  docType?: string,
 ): Paragraph {
-  const style = resolveStyle(template, 'centered_text');
+  const style = resolveStyle(template, 'centered_text', docType);
   const actualSize = block.font_size_pt
     ? block.font_size_pt * 2  // convert pt → half-pt
     : style.font.size;
@@ -322,7 +341,7 @@ function renderTable(
         text: block.caption,
         bold: true,
         size: 21,
-        font: { name: 'Times New Roman', eastAsia: '黑体' },
+        font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' },
       }),
     ],
     alignment: AlignmentType.CENTER,
@@ -351,7 +370,7 @@ function renderTable(
                 text: h,
                 bold: true,
                 size: 21,
-                font: { name: 'Times New Roman', eastAsia: '黑体' },
+                font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' },
               }),
             ],
             alignment: AlignmentType.CENTER,
@@ -383,7 +402,7 @@ function renderTable(
                 new TextRun({
                   text: cell,
                   size: 21,
-                  font: { name: 'Times New Roman', eastAsia: '宋体' },
+                  font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
                 }),
               ],
               alignment: AlignmentType.CENTER,
@@ -523,7 +542,7 @@ function renderFigure(
       new TextRun({
         text: `[图: ${block.caption} (未找到图片: ${block.path})]`,
         size: 21,
-        font: { name: 'Times New Roman', eastAsia: '宋体' },
+        font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
         italics: true,
       }),
     ],
@@ -558,7 +577,8 @@ function renderHorizontalRule(): Paragraph {
 function renderRedHeader(
   block: ContentBlock & { text: string; font_size_pt?: number },
 ): Paragraph {
-  const size = (block.font_size_pt || 22) * 2; // pt → half-pt
+  // GB/T 9704-2012: 发文机关标志用方正小标宋简体，红色，字号自行酌定（以不大于上级机关为原则）
+  const size = (block.font_size_pt || 22) * 2; // pt → half-pt，默认22pt
   return new Paragraph({
     children: [
       new TextRun({
@@ -566,7 +586,7 @@ function renderRedHeader(
         size,
         bold: true,
         color: 'FF0000',
-        font: { name: 'Times New Roman', eastAsia: '方正小标宋简体' },
+        font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '方正小标宋简体', cs: 'Times New Roman' },
       }),
     ],
     alignment: AlignmentType.CENTER,
@@ -577,12 +597,13 @@ function renderRedHeader(
 function renderDocumentNumber(
   block: ContentBlock & { text: string },
 ): Paragraph {
+  // GB/T 9704-2012: 发文字号用3号仿宋体（16pt）
   return new Paragraph({
     children: [
       new TextRun({
         text: block.text,
-        size: 28, // 14pt
-        font: { name: 'Times New Roman', eastAsia: '仿宋' },
+        size: 32, // 16pt = 三号
+        font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '仿宋', cs: 'Times New Roman' },
       }),
     ],
     alignment: AlignmentType.CENTER,
@@ -593,13 +614,14 @@ function renderDocumentNumber(
 function renderRecipientLine(
   block: ContentBlock & { text: string; recipientType: 'primary' | 'cc' },
 ): Paragraph {
+  // GB/T 9704-2012: 主送机关用3号仿宋体（16pt）
   const prefix = block.recipientType === 'cc' ? '抄送：' : '';
   return new Paragraph({
     children: [
       new TextRun({
         text: prefix + block.text,
-        size: 28, // 14pt
-        font: { name: 'Times New Roman', eastAsia: '仿宋' },
+        size: 32, // 16pt = 三号
+        font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '仿宋', cs: 'Times New Roman' },
       }),
     ],
     alignment: AlignmentType.LEFT,
@@ -610,13 +632,14 @@ function renderRecipientLine(
 function renderSignatureBlock(
   block: ContentBlock & { authority: string; date: string },
 ): [Paragraph, Paragraph] {
+  // GB/T 9704-2012: 发文机关署名和成文日期用3号仿宋体（16pt）
   return [
     new Paragraph({
       children: [
         new TextRun({
           text: block.authority,
-          size: 28,
-          font: { name: 'Times New Roman', eastAsia: '仿宋' },
+          size: 32, // 16pt = 三号
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '仿宋', cs: 'Times New Roman' },
         }),
       ],
       alignment: AlignmentType.RIGHT,
@@ -627,12 +650,12 @@ function renderSignatureBlock(
       children: [
         new TextRun({
           text: block.date,
-          size: 28,
-          font: { name: 'Times New Roman', eastAsia: '仿宋' },
+          size: 32, // 16pt = 三号
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '仿宋', cs: 'Times New Roman' },
         }),
       ],
       alignment: AlignmentType.RIGHT,
-      indent: { right: 720 },
+      indent: { right: 720 }, // ~1cm from right
       spacing: { before: 0, after: 60, line: 312 },
     }),
   ];
@@ -641,6 +664,7 @@ function renderSignatureBlock(
 function renderAttachmentNote(
   block: ContentBlock & { attachments: string[] },
 ): Paragraph[] {
+  // GB/T 9704-2012: 附件说明用3号仿宋体（16pt）
   const prefix = '附件：';
   const text = prefix + block.attachments.map((a, i) => `${i + 1}. ${a}`).join('  ');
   return [
@@ -648,8 +672,8 @@ function renderAttachmentNote(
       children: [
         new TextRun({
           text,
-          size: 28,
-          font: { name: 'Times New Roman', eastAsia: '仿宋' },
+          size: 32, // 16pt = 三号
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '仿宋', cs: 'Times New Roman' },
         }),
       ],
       alignment: AlignmentType.LEFT,
@@ -668,20 +692,21 @@ function processBlock(
   block: ContentBlock,
   template: DocumentTemplate,
   contentDir?: string,
+  docType?: string,
 ): (Paragraph | Table)[] {
   switch (block.type) {
     case 'heading1':
     case 'heading2':
     case 'heading3':
     case 'heading4':
-      return [renderHeading(template, block as any)];
+      return [renderHeading(template, block as any, docType)];
 
     case 'paragraph':
     case 'paragraph_no_indent':
-      return [renderParagraph(template, block as any)];
+      return [renderParagraph(template, block as any, docType)];
 
     case 'centered_text':
-      return [renderCenteredText(template, block as any)];
+      return [renderCenteredText(template, block as any, docType)];
 
     case 'equation':
     case 'equation_numbered':
@@ -803,7 +828,7 @@ function renderJournalArticle(
           text: doc.meta.title,
           bold: true,
           size: 32,
-          font: { name: 'Times New Roman', eastAsia: '黑体' },
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' },
         }),
       ],
       alignment: AlignmentType.CENTER,
@@ -819,7 +844,7 @@ function renderJournalArticle(
         new TextRun({
           text: author.name + (author.isCorresponding ? '*' : ''),
           size: 21,
-          font: { name: 'Times New Roman', eastAsia: '宋体' },
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
         })
       );
       
@@ -857,7 +882,7 @@ function renderJournalArticle(
             text: affText,
             size: 18,
             italics: true,
-            font: { name: 'Times New Roman', eastAsia: '宋体' },
+            font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
           }),
         ],
         alignment: AlignmentType.CENTER,
@@ -871,8 +896,8 @@ function renderJournalArticle(
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: '摘  要：', bold: true, size: 20, font: { name: 'Times New Roman', eastAsia: '黑体' } }),
-          new TextRun({ text: doc.meta.abstract, size: 20, font: { name: 'Times New Roman', eastAsia: '宋体' } }),
+          new TextRun({ text: '摘  要：', bold: true, size: 20, font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' } }),
+          new TextRun({ text: doc.meta.abstract, size: 20, font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' } }),
         ],
         indent: { left: 720, right: 720 },
         spacing: { before: 120, after: 60, line: 240 },
@@ -886,8 +911,8 @@ function renderJournalArticle(
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: '关键词：', bold: true, size: 20, font: { name: 'Times New Roman', eastAsia: '黑体' } }),
-          new TextRun({ text: doc.meta.keywords.join('；'), size: 20, font: { name: 'Times New Roman', eastAsia: '宋体' } }),
+          new TextRun({ text: '关键词：', bold: true, size: 20, font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' } }),
+          new TextRun({ text: doc.meta.keywords.join('；'), size: 20, font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' } }),
         ],
         indent: { left: 720, right: 720 },
         spacing: { before: 60, after: 240, line: 240 },
@@ -965,7 +990,7 @@ function renderOfficialDocument(
             size: 24,
             bold: true,
             color: 'FF0000',
-            font: { name: 'Times New Roman', eastAsia: '黑体' },
+            font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' },
           }),
         ],
         alignment: AlignmentType.LEFT,
@@ -1000,14 +1025,15 @@ function renderOfficialDocument(
   );
 
   // Title
+  // GB/T 9704-2012: 标题用2号方正小标宋简体（22pt）
   children.push(
     new Paragraph({
       children: [
         new TextRun({
           text: doc.meta.title,
-          size: 36,
+          size: 44, // 22pt = 二号
           bold: true,
-          font: { name: 'Times New Roman', eastAsia: '方正小标宋简体' },
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '方正小标宋简体', cs: 'Times New Roman' },
         }),
       ],
       alignment: AlignmentType.CENTER,
@@ -1027,7 +1053,7 @@ function renderOfficialDocument(
   }
 
   // Body
-  children.push(...processBlocks(doc.body, template, contentDir));
+  children.push(...processBlocks(doc.body, template, contentDir, 'official'));
 
   // Signature Block
   children.push(
@@ -1050,20 +1076,21 @@ function renderOfficialDocument(
     for (const att of doc.attachments) {
       if (att.content && att.content.length > 0) {
         children.push(renderPageBreak());
+        // GB/T 9704-2012: 附件标题用3号黑体（16pt）
         children.push(
           new Paragraph({
             children: [
               new TextRun({
                 text: `附件${att.order}：${att.title}`,
-                size: 28,
+                size: 32, // 16pt = 三号
                 bold: true,
-                font: { name: 'Times New Roman', eastAsia: '黑体' },
+                font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' },
               }),
             ],
             spacing: { before: 240, after: 240, line: 312 },
           })
         );
-        children.push(...processBlocks(att.content, template, contentDir));
+        children.push(...processBlocks(att.content, template, contentDir, 'official'));
       }
     }
   }
@@ -1086,7 +1113,8 @@ function renderOfficialDocument(
     );
   }
 
-  // Publishing Info
+  // Publishing Info (版记)
+  // GB/T 9704-2012: 版记部分用4号仿宋体（14pt）
   const issuingDept = doc.meta.issuingDepartment || doc.meta.issuingAuthority;
   const issueDate = doc.meta.issueDate || doc.meta.date;
   children.push(
@@ -1101,13 +1129,13 @@ function renderOfficialDocument(
       children: [
         new TextRun({
           text: `${issuingDept}办公厅`,
-          size: 18,
-          font: { name: 'Times New Roman', eastAsia: '仿宋' },
+          size: 28, // 14pt = 四号
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '仿宋', cs: 'Times New Roman' },
         }),
         new TextRun({
           text: `\t\t\t\t\t\t${issueDate}印发`,
-          size: 18,
-          font: { name: 'Times New Roman', eastAsia: '仿宋' },
+          size: 28, // 14pt = 四号
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '仿宋', cs: 'Times New Roman' },
         }),
       ],
       spacing: { before: 60, after: 120 },
@@ -1148,7 +1176,7 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
             new TextRun({
               text: headerStr,
               size: 21,
-              font: { name: 'Times New Roman', eastAsia: '宋体' },
+              font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
             }),
           ],
           alignment: AlignmentType.CENTER,
@@ -1165,7 +1193,7 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
             new TextRun({
               children: [PageNumber.CURRENT],
               size: 21,
-              font: 'Times New Roman',
+              font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', cs: 'Times New Roman' },
             }),
           ],
           alignment: AlignmentType.CENTER,
@@ -1207,13 +1235,86 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
     }],
   });
 
-  const buffer = await Packer.toBuffer(wordDoc);
+  let buffer = await Packer.toBuffer(wordDoc);
+
+  // ── Post-process: fix Chinese fonts (WPS compatibility) ──────
+  // The docx library has a bug where font.eastAsia in styles.default
+  // gets overwritten with the ascii font name. WPS then shows all text
+  // in Times New Roman. We fix this by post-processing the zip:
+  // 1. Remove theme1.xml (stops theme font overrides)
+  // 2. Replace all *Theme attributes in styles.xml with explicit fonts
+  // 3. Fix docDefaults eastAsia font
+  buffer = await fixChineseFonts(buffer);
 
   if (options.outputPath) {
     writeFileSync(options.outputPath, buffer);
   }
 
   return buffer;
+}
+
+/**
+ * Post-process the docx buffer to fix Chinese font rendering in WPS.
+ *
+ * Root cause: The `docx` npm library (v9.x) writes `w:eastAsia="Times New Roman"`
+ * in docDefaults when you set `font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' }`
+ * in styles.default.document.run — it ignores eastAsia and uses `name` for all
+ * four font slots. WPS honors the docDefaults eastAsia value, so all Chinese
+ * text renders in Times New Roman (which falls back to a default CJK font that
+ * looks wrong). Individual TextRun-level font.eastAsia DOES work, but only for
+ * runs that explicitly set it — any run inheriting from defaults is broken.
+ *
+ * Fix: After packing, unzip the buffer, strip the theme file and all *Theme
+ * attributes from styles.xml, and set docDefaults eastAsia to 仿宋 (the
+ * standard Chinese official document body font). Individual run-level eastAsia
+ * values (宋体/黑体/仿宋) are preserved and now take effect.
+ */
+async function fixChineseFonts(buffer: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer);
+  const files = Object.keys(zip.files);
+
+  // 1. Remove theme file(s)
+  for (const fname of files) {
+    if (fname.match(/word\/theme\/theme\d+\.xml$/)) {
+      zip.remove(fname);
+    }
+  }
+
+  // 2. Fix styles.xml
+  const stylesFile = zip.file('word/styles.xml');
+  if (stylesFile) {
+    let stylesXml = await stylesFile.async('string');
+    // Remove all *Theme attributes
+    stylesXml = stylesXml.replace(
+      /\s+w:(asciiTheme|hAnsiTheme|eastAsiaTheme|cstheme)="[^"]*"/g,
+      '',
+    );
+    // Fix any rFonts where eastAsia is a Latin font → 仿宋
+    stylesXml = stylesXml.replace(
+      /\sw:eastAsia="(Times New Roman|Arial|Calibri|Cambria)"/g,
+      ' w:eastAsia="仿宋"',
+    );
+    zip.file('word/styles.xml', stylesXml);
+  }
+
+  // 3. Fix document.xml
+  const docFile = zip.file('word/document.xml');
+  if (docFile) {
+    let docXml = await docFile.async('string');
+    // Remove all *Theme attributes
+    docXml = docXml.replace(
+      /\s+w:(asciiTheme|hAnsiTheme|eastAsiaTheme|cstheme)="[^"]*"/g,
+      '',
+    );
+    // Fix any rFonts where eastAsia is a Latin font → 仿宋
+    docXml = docXml.replace(
+      /\sw:eastAsia="(Times New Roman|Arial|Calibri|Cambria)"/g,
+      ' w:eastAsia="仿宋"',
+    );
+    zip.file('word/document.xml', docXml);
+  }
+
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
 // ── Legacy API (backward compat with existing JSON format) ──
@@ -1272,17 +1373,31 @@ function processBlocks(
   blocks: ContentBlock[],
   template: DocumentTemplate,
   contentDir?: string,
+  docType?: string,
 ): (Paragraph | Table)[] {
-  return blocks.flatMap(block => processBlock(block, template, contentDir));
+  return blocks.flatMap(block => processBlock(block, template, contentDir, docType));
 }
 
 // ── Quick-start helpers ───────────────────────────────────
 
+/** Path to the parsed USTB template JSON (relative to project root). */
+const USTB_TEMPLATE_JSON = resolve(_dirname, '..', '..', '..', 'assets', 'ustb-thesis-template.json');
+
 /**
- * Create a minimal USTB template (matching your existing format).
- * Useful as a default when no template file is provided.
+ * Create a USTB thesis template, loading from the pre-parsed .docx template.
+ * Falls back to a minimal hardcoded template if the JSON file is unavailable.
  */
 export function createUSTBTemplate(): DocumentTemplate {
+  try {
+    if (existsSync(USTB_TEMPLATE_JSON)) {
+      const raw = JSON.parse(readFileSync(USTB_TEMPLATE_JSON, 'utf-8'));
+      return raw as DocumentTemplate;
+    }
+  } catch {
+    // Fall through to hardcoded fallback
+  }
+
+  // Minimal hardcoded fallback (used when the parsed JSON is not available)
   return {
     meta: {
       organization: '北京科技大学',

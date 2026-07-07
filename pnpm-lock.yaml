@@ -44,7 +44,13 @@ importers:
       docx:
         specifier: ^9.5
         version: 9.7.1
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
     devDependencies:
+      '@types/jszip':
+        specifier: ^3.4.1
+        version: 3.4.1
       '@types/node':
         specifier: ^20
         version: 20.19.43
@@ -81,6 +87,10 @@ packages:
 
   '@nodable/entities@2.2.0':
     resolution: {integrity: sha512-9uGyhaQavEUMC8AIddIjau4NsnsXhou+j5sBAGojCM1oxmQpVKTWR/9JxABD6UAv12vpIms55fPZKFQEhG6uBg==}
+
+  '@types/jszip@3.4.1':
+    resolution: {integrity: sha512-TezXjmf3lj+zQ651r6hPqvSScqBLvyPI9FxdXBqpEwBijNGQ2NXpaFW/7joGzveYkKQUil7iiDHLo6LV71Pc0A==}
+    deprecated: This is a stub types definition. jszip provides its own type definitions, so you do not need this installed.
 
   '@types/node@20.19.43':
     resolution: {integrity: sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==}
@@ -188,6 +198,10 @@ packages:
 snapshots:
 
   '@nodable/entities@2.2.0': {}
+
+  '@types/jszip@3.4.1':
+    dependencies:
+      jszip: 3.10.1
 
   '@types/node@20.19.43':
     dependencies:

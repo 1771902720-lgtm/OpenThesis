@@ -2,13 +2,31 @@
   "name": "@openthesis/docx-renderer",
   "version": "0.2.0",
   "description": "Template-driven DOCX renderer — converts structured JSON content into submission-ready .docx using a parsed style template",
-  "keywords": ["docx", "renderer", "template", "word", "document-generator", "typescript", "thesis"],
-  "repository": { "type": "git", "url": "https://github.com/1771902720-lgtm/OpenThesis.git", "directory": "packages/docx-renderer" },
+  "keywords": [
+    "docx",
+    "renderer",
+    "template",
+    "word",
+    "document-generator",
+    "typescript",
+    "thesis"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1771902720-lgtm/OpenThesis.git",
+    "directory": "packages/docx-renderer"
+  },
   "homepage": "https://github.com/1771902720-lgtm/OpenThesis#readme",
   "license": "MIT",
   "author": "OpenThesis Contributors",
-  "publishConfig": { "access": "public" },
-  "files": ["dist", "src", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,9 +44,11 @@
   },
   "dependencies": {
     "@openthesis/document-schema": "workspace:*",
-    "docx": "^9.5"
+    "docx": "^9.5",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
+    "@types/jszip": "^3.4.1",
     "@types/node": "^20",
     "typescript": "^5.5"
   }
