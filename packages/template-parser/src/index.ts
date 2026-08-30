@@ -172,6 +172,7 @@ function extractRawStyles(parsed: any): Record<string, RawStyle> {
 }
 
 function extractParagraphProps(pPr: any): RawParagraphProps | undefined {
+  pPr = firstElement(pPr);
   if (!pPr) return undefined;
 
   const props: RawParagraphProps = {};
@@ -220,6 +221,7 @@ function extractParagraphProps(pPr: any): RawParagraphProps | undefined {
 }
 
 function extractRunProps(rPr: any): RawRunProps | undefined {
+  rPr = firstElement(rPr);
   if (!rPr) return undefined;
 
   const props: RawRunProps = {};
@@ -239,15 +241,25 @@ function extractRunProps(rPr: any): RawRunProps | undefined {
   if (szCs) props.fontSizeCs = parseInt(szCs);
 
   // Bold
-  if (rPr['w:b']) props.bold = rPr['w:b']['@_w:val'] !== '0' && rPr['w:b']['@_w:val'] !== 'false';
+  if (rPr['w:b'] !== undefined) {
+    const value = rPr['w:b']?.['@_w:val'];
+    props.bold = value !== '0' && value !== 'false';
+  }
   // Italic
-  if (rPr['w:i']) props.italic = rPr['w:i']['@_w:val'] !== '0' && rPr['w:i']['@_w:val'] !== 'false';
+  if (rPr['w:i'] !== undefined) {
+    const value = rPr['w:i']?.['@_w:val'];
+    props.italic = value !== '0' && value !== 'false';
+  }
   // Underline
   if (rPr['w:u']) props.underline = rPr['w:u']['@_w:val'] !== 'none';
   // Color
   if (rPr['w:color']) props.color = rPr['w:color']['@_w:val'];
 
   return Object.keys(props).length > 0 ? props : undefined;
+}
+
+function firstElement<T>(value: T | T[] | undefined): T | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 // ── Style Inheritance Resolution ──────────────────────────

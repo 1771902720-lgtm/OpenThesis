@@ -25,6 +25,9 @@
     "test": "echo 'Tests not yet configured'"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^22.0.0",
+    "adm-zip": "^0.5.16",
     "typescript": "^5.5"
   }
 }

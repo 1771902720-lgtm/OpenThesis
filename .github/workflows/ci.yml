@@ -6,9 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         node-version: [22, 24]
@@ -23,5 +31,4 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm test || echo "No tests yet — skipping"
+      - run: pnpm check

@@ -23,7 +23,7 @@ Open an issue with:
 git clone https://github.com/1771902720-lgtm/OpenThesis.git
 cd OpenThesis
 pnpm install
-pnpm build
+pnpm check
 ```
 
 **Project structure:**
@@ -34,7 +34,7 @@ pnpm build
 - `packages/cli` — Command-line interface
 
 **Before submitting a PR:**
-- Run `pnpm build` and ensure no errors
+- Run `pnpm check` and ensure the build and all tests pass
 - Add tests for new functionality (if applicable)
 - Follow the existing code style
 
@@ -46,6 +46,8 @@ README, CLAUDE.md, inline comments — all improvements welcome.
 ```bash
 pnpm install          # Install dependencies
 pnpm build            # Build all packages
+pnpm test             # Run the automated test suite
+pnpm check            # Build, then run all tests (same gate as CI)
 pnpm cli parse ...    # Test the parser
 pnpm cli build ...    # Test the renderer
 pnpm cli init         # Create sample content

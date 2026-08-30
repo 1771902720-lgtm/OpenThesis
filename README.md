@@ -9,7 +9,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <img src="https://img.shields.io/badge/status-V2-blue" alt="Status">
-  <img src="https://img.shields.io/badge/node-%3E%3D18-success" alt="Node">
+  <img src="https://img.shields.io/badge/node-%3E%3D22-success" alt="Node">
   <img src="https://img.shields.io/badge/pnpm-11.x-orange" alt="pnpm">
 </p>
 
@@ -72,8 +72,8 @@ graph TD
 
 ```bash
 # 1. Install & build
-git clone https://github.com/openthesis/openthesis.git
-cd openthesis
+git clone https://github.com/1771902720-lgtm/OpenThesis.git
+cd OpenThesis
 pnpm install && pnpm build
 
 # 2. Parse your university/favorite journal's .docx template
@@ -117,7 +117,7 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 | `@openthesis/template-parser` | —   | Parse `.docx` → JSON style DSL with inheritance resolution |
 | `@openthesis/docx-renderer`   | —   | Template-driven DOCX renderer (dolanmiu/docx)              |
 | `@openthesis/equation-engine` | —   | LaTeX → plain text (V1) / OMML (V3)                        |
-| `@openthesis/cli`             | —   | `thesis parse                                              |
+| `@openthesis/cli`             | —   | Command-line interface: `thesis parse`, `init`, and `build` |
 
 ## Features
 
@@ -138,7 +138,7 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 - **pnpm workspace** — monorepo
 - **dolanmiu/docx** — DOCX generation
 - **JSZip** + **fast-xml-parser** — DOCX template parsing
-- **Node.js ≥ 18**
+- **Node.js ≥ 22**
 
 ## How Template Parsing Works
 
@@ -175,7 +175,7 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 
 This is an early-stage project. If you have a university/journal `.docx` template you'd like to add support for, please open an issue with the template attached (or a link to it).
 
-PRs welcome. See [CLAUDE.md](CLAUDE.md) for architecture details.
+PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and [CLAUDE.md](CLAUDE.md) for architecture details.
 
 ## License
 

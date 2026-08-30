@@ -21,11 +21,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/openthesis/openthesis.git"
+    "url": "https://github.com/1771902720-lgtm/OpenThesis.git"
   },
-  "homepage": "https://github.com/openthesis/openthesis#readme",
+  "homepage": "https://github.com/1771902720-lgtm/OpenThesis#readme",
   "bugs": {
-    "url": "https://github.com/openthesis/openthesis/issues"
+    "url": "https://github.com/1771902720-lgtm/OpenThesis/issues"
   },
   "author": "OpenThesis Contributors",
   "license": "MIT",
@@ -34,10 +34,17 @@
     "dev": "pnpm -r dev",
     "clean": "pnpm -r clean",
     "cli": "node packages/cli/dist/index.js",
-    "test": "pnpm -r test"
+    "test": "node --test tests/*.test.mjs",
+    "check": "pnpm build && pnpm test"
   },
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@11.6.0"
+  "packageManager": "pnpm@11.6.0",
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^22.0.0",
+    "adm-zip": "^0.5.16",
+    "jszip": "^3.10.1"
+  }
 }

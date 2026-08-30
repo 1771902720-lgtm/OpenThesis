@@ -6,11 +6,12 @@
 // Falls back to Unicode plain-text conversion otherwise.
 // ============================================================
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
+import AdmZip from 'adm-zip';
 
 // ── Public API ────────────────────────────────────────────
 
@@ -128,7 +129,7 @@ function generateOMMLviaPandoc(latex: string): string | null {
     writeFileSync(mdPath, `$$${safeLatex}$$`, 'utf-8');
 
     // Run pandoc
-    execSync(`pandoc "${mdPath}" -o "${docxPath}"`, {
+    execFileSync('pandoc', [mdPath, '-o', docxPath], {
       encoding: 'utf-8',
       stdio: 'pipe',
       timeout: 5000,
@@ -149,7 +150,6 @@ function generateOMMLviaPandoc(latex: string): string | null {
 function extractOMML(docxPath: string): string | null {
   try {
     // DOCX is a ZIP file
-    const AdmZip = require('adm-zip');
     const zip = new AdmZip(docxPath);
     const docXml = zip.readAsText('word/document.xml');
 
