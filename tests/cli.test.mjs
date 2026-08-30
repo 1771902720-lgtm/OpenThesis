@@ -46,3 +46,26 @@ test('missing option values produce a clear error', () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Missing value for -o/);
 });
+
+test('import converts Markdown into structured JSON', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'paper.md');
+  const output = join(dir, 'paper.json');
+  writeFileSync(input, `---\ntype: journal\ntitle: CLI Markdown\nauthors: [Agent]\n---\n## Methods\nReproducible method.`);
+  const result = run(['import', input, '-o', output]);
+  assert.equal(result.status, 0, result.stderr);
+  const document = JSON.parse(readFileSync(output, 'utf8'));
+  assert.equal(document.type, 'journal');
+  assert.equal(document.sections[0].title, 'Methods');
+});
+
+test('build renders Markdown directly to DOCX', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'thesis.md');
+  const output = join(dir, 'thesis.docx');
+  writeFileSync(input, `---\ntitle: Markdown Build\nauthor: Test Agent\n---\n## Introduction\nDirect build works.`);
+  const result = run(['build', input, '-o', output]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(output), true);
+  assert.equal(readFileSync(output).subarray(0, 2).toString('ascii'), 'PK');
+});

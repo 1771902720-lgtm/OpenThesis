@@ -11,14 +11,14 @@
 <p align="center">
   <a href="https://github.com/1771902720-lgtm/OpenThesis/actions/workflows/ci.yml"><img src="https://github.com/1771902720-lgtm/OpenThesis/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <img src="https://img.shields.io/badge/status-V2-blue" alt="Status">
+  <img src="https://img.shields.io/badge/status-V2_complete-brightgreen" alt="Status">
   <img src="https://img.shields.io/badge/node-%3E%3D22-success" alt="Node">
   <img src="https://img.shields.io/badge/pnpm-11.x-orange" alt="pnpm">
 </p>
 
 ---
 
-**One engine, infinite templates.** Parse any `.docx` template. Write in structured JSON. Export submission-ready DOCX.
+**One engine, infinite templates.** Parse any `.docx` template. Write in Markdown or structured JSON. Export submission-ready DOCX.
 
 For **university theses**, **journal articles**, and **government official documents** — with correct fonts, margins, headers, page numbers, table formatting, and equation rendering.
 
@@ -31,7 +31,7 @@ For **university theses**, **journal articles**, and **government official docum
 | Template **filling** (docxtemplater)    | Template **understanding** — knows what a heading, abstract, or 发文字号 IS |
 | One template format hardcoded           | Parse **any** `.docx` template → JSON style DSL                         |
 | Formatting parameters scattered in code | All formatting driven by the parsed template                            |
-| Markdown → LaTeX (pandoc/ThesisForge)   | Structured JSON → **DOCX**, with Markdown import planned                |
+| Markdown → LaTeX (pandoc/ThesisForge)   | Markdown or structured JSON → editable **DOCX**                         |
 | Single document type                    | **Thesis + Journal + 公文** — one engine, three domains                   |
 
 ## What it does
@@ -41,12 +41,12 @@ graph TD
     %% Nodes and Groups
     subgraph Inputs ["1. Input Sources"]
         A["📄 Word Template (.docx) <br> (e.g. Tsinghua Thesis, Elsevier, GB/T 9704)"]
-        B["💾 Structured Content (.json) <br> (e.g. thesis-content, journal-content)"]
+        B["✍️ Markdown or JSON Content <br> (thesis, journal, official document)"]
     end
 
     subgraph Core ["2. Processing Engine (OpenThesis Core)"]
         C["⚙️ @openthesis/template-parser <br> (Extracts styles & layouts)"]
-        D["🔍 @openthesis/document-schema <br> (Defines typed document structures)"]
+        D["🔍 @openthesis/markdown-parser + schema <br> (Creates typed document structures)"]
         E["🎨 @openthesis/docx-renderer <br> (Generates final layout dynamically)"]
     end
 
@@ -79,14 +79,34 @@ git clone https://github.com/1771902720-lgtm/OpenThesis.git
 cd OpenThesis
 pnpm install && pnpm build
 
-# 2. Parse your university/favorite journal's .docx template
+# 2. Build the included Markdown example directly
+node packages/cli/dist/index.js build examples/sample-thesis.md -o output.docx
+
+# 3. Or parse your university/favorite journal's .docx template
 node packages/cli/dist/index.js parse 你的学校模板.docx --type thesis --org "XX大学"
 
-# 3. Create sample content
+# 4. Create sample structured content
 node packages/cli/dist/index.js init --type thesis
 
-# 4. Build your document
+# 5. Build with the parsed template
 node packages/cli/dist/index.js build thesis-content.json -t template.json -o output.docx
+```
+
+Markdown can also be exported as inspectable JSON:
+
+```bash
+node packages/cli/dist/index.js import manuscript.md --type thesis -o manuscript.json
+```
+
+## Agent Skill
+
+OpenThesis ships as a standard repository skill at `.codex/skills/openthesis`. Agents can invoke it explicitly with `$openthesis`, or discover it automatically for thesis, journal, official-document, Word-template, and Markdown-to-DOCX tasks.
+
+The skill includes a stable wrapper, focused workflow references, the Markdown contract, the content-schema quick reference, and UI metadata:
+
+```bash
+node .codex/skills/openthesis/scripts/openthesis.mjs build manuscript.md \
+  --type thesis -t university.template.json -o final.docx
 ```
 
 ## Three Document Types, One Engine
@@ -121,10 +141,11 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 | Package                       | npm | Description                                                |
 | ----------------------------- | --- | ---------------------------------------------------------- |
 | `@openthesis/document-schema` | —   | Domain models for thesis, journal, official documents      |
+| `@openthesis/markdown-parser` | —   | Markdown + front matter → typed document JSON              |
 | `@openthesis/template-parser` | —   | Parse `.docx` → JSON style DSL with inheritance resolution |
 | `@openthesis/docx-renderer`   | —   | Template-driven DOCX renderer (dolanmiu/docx)              |
-| `@openthesis/equation-engine` | —   | LaTeX → Unicode fallback; optional Pandoc OMML extraction  |
-| `@openthesis/cli`             | —   | Command-line interface: `thesis parse`, `init`, and `build` |
+| `@openthesis/equation-engine` | —   | LaTeX math AST + Unicode/Pandoc compatibility fallbacks    |
+| `@openthesis/cli`             | —   | CLI: `thesis parse`, `import`, `init`, and `build`          |
 
 ## Features
 
@@ -136,9 +157,12 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 - ✅ **Header/footer/page numbers** — With template-configurable text
 - ✅ **Image embedding** — PNG/JPEG/GIF/BMP detection, aspect ratio, and captions
 - ✅ **Lists, code blocks, and blockquotes** — Native document rendering
+- ✅ **Markdown import** — Front matter, nested sections, lists, tables, figures, code, quotes, and display equations
+- ✅ **Direct Markdown builds** — `.md` → `.docx` without an intermediate file
+- ✅ **Agent-ready Skill** — Standard `SKILL.md`, executable wrapper, UI metadata, and progressive references
+- ✅ **Native Office Math core** — Fractions, roots, scripts, sums, integrals, symbols, and Greek letters emit OMML
 - ✅ **Legacy format support** — Backward compatible with existing `{cover_blocks, body_blocks}` JSON
-- 🚧 Native OMML insertion in rendered documents (V3)
-- 🚧 Markdown → JSON parser (V2)
+- 🚧 Advanced LaTeX macros and environments in native OMML (V3)
 
 ## Tech Stack
 
@@ -173,8 +197,8 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | Phase | Goal                                            | Status     |
 | ----- | ----------------------------------------------- | ---------- |
 | V1    | Core engine: parse + render + CLI               | ✅ Done     |
-| V2    | Images + double-column output; Markdown parser  | 🚧 In progress |
-| V3    | Native LaTeX → OMML insertion                   | 🚧 Planned |
+| V2    | Images + double-column output; Markdown parser  | ✅ Done     |
+| V3    | Native LaTeX → OMML insertion                   | 🚧 In progress (core subset) |
 | V4    | ML-based template layout understanding          | 📋 Future  |
 | V5    | AI Agent: auto-generate thesis content          | 📋 Future  |
 | SaaS  | Template marketplace (community-contributed)    | 📋 Future  |

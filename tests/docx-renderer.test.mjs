@@ -114,3 +114,23 @@ test('writes configured multi-column sections to OOXML', async () => {
   const { xml } = await documentXml(buffer);
   assert.match(xml, /<w:cols[^>]*w:space="720"[^>]*w:num="2"|<w:cols[^>]*w:num="2"[^>]*w:space="720"/);
 });
+
+test('writes supported LaTeX as native Office Math elements', async () => {
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Native math' }, cover: [],
+      sections: [{
+        id: 'math', type: 'chapter', title: 'Math',
+        content: [{ type: 'equation_numbered', latex: '\\frac{x_1}{\\sqrt{y^2}}', number: '1' }],
+      }],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+  assert.match(xml, /<m:oMath>/);
+  assert.match(xml, /<m:f>/);
+  assert.match(xml, /<m:rad>/);
+  assert.match(xml, /<m:sSub>/);
+  assert.match(xml, /<m:sSup>/);
+  assert.match(xml, /\(1\)/);
+});

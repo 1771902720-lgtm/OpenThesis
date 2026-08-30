@@ -4,13 +4,15 @@
 // ============================================================
 // Usage:
 //   thesis parse <template.docx> [--type thesis|journal|official]
-//   thesis build <content.json> [-t <template.json>] [-o <output.docx>]
+//   thesis import <content.md> [--type thesis|journal|official] [-o <content.json>]
+//   thesis build <content.json|content.md> [-t <template.json>] [-o <output.docx>]
 //   thesis init [--type thesis|journal|official]
 // ============================================================
 
 import { readFileSync, writeFileSync } from 'fs';
-import { resolve, dirname, extname } from 'path';
+import { resolve, dirname, extname, basename } from 'path';
 import { parseTemplate } from '@openthesis/template-parser';
+import { parseMarkdown } from '@openthesis/markdown-parser';
 import { renderLegacy, createUSTBTemplate, renderDocument } from '@openthesis/docx-renderer';
 import type { DocumentTemplate, DocumentType, LegacyDocumentJSON, ThesisDocument, JournalArticle, OfficialDocument } from '@openthesis/document-schema';
 
@@ -20,6 +22,7 @@ const command = args[0];
 async function main() {
   switch (command) {
     case 'parse':   await cmdParse(args.slice(1)); break;
+    case 'import':  cmdImport(args.slice(1)); break;
     case 'build':   await cmdBuild(args.slice(1)); break;
     case 'init':    cmdInit(args.slice(1)); break;
     case '--help':
@@ -29,6 +32,45 @@ async function main() {
       console.error(`Unknown command: ${command}`);
       printHelp();
       process.exit(1);
+  }
+}
+
+// ── thesis import <content.md> ────────────────────────────
+
+function cmdImport(args: string[]) {
+  if (args.length < 1) {
+    console.error('Usage: thesis import <content.md> [--type thesis|journal|official] [-o <content.json>]');
+    process.exit(1);
+  }
+
+  const inputPath = resolve(args[0]);
+  if (!isMarkdownPath(inputPath)) {
+    console.error('Markdown input must use a .md or .markdown extension.');
+    process.exit(1);
+  }
+  const typeOption = readOption(args, '--type');
+  const outputOption = readOption(args, '-o');
+  const outputPath = outputOption
+    ? resolve(outputOption)
+    : inputPath.slice(0, -extname(inputPath).length) + '.json';
+
+  if (outputPath === inputPath) {
+    console.error('Output path must be different from the Markdown input path.');
+    process.exit(1);
+  }
+
+  try {
+    const document = parseMarkdown(readFileSync(inputPath, 'utf-8'), {
+      documentType: typeOption ? validateDocType(typeOption) : undefined,
+      sourceName: basename(inputPath, extname(inputPath)),
+    });
+    writeFileSync(outputPath, JSON.stringify(document, null, 2) + '\n', 'utf-8');
+    console.log('✅ Markdown imported successfully!');
+    console.log(`   Type:   ${document.type}`);
+    console.log(`   Output: ${outputPath}`);
+  } catch (err: unknown) {
+    console.error(`\n❌ Failed to import Markdown: ${errorMessage(err)}`);
+    process.exit(1);
   }
 }
 
@@ -86,22 +128,23 @@ async function cmdParse(args: string[]) {
 }
 async function cmdBuild(args: string[]) {
   if (args.length < 1) {
-    console.error('Usage: thesis build <content.json> [-t <template.json>] [-o <output.docx>]');
+    console.error('Usage: thesis build <content.json|content.md> [-t <template.json>] [-o <output.docx>] [--type thesis|journal|official]');
     process.exit(1);
   }
 
   const contentPath = resolve(args[0]);
   const templateOption = readOption(args, '-t');
   const outputOption = readOption(args, '-o');
+  const typeOption = readOption(args, '--type');
   const templatePath = templateOption ? resolve(templateOption) : null;
   const outputPath = outputOption
     ? resolve(outputOption)
-    : extname(contentPath).toLowerCase() === '.json'
+    : ['.json', '.md', '.markdown'].includes(extname(contentPath).toLowerCase())
       ? contentPath.slice(0, -extname(contentPath).length) + '.docx'
       : contentPath + '.docx';
 
   if (outputPath === contentPath) {
-    console.error('Output path must be different from the content JSON path.');
+    console.error('Output path must be different from the content input path.');
     process.exit(1);
   }
 
@@ -110,7 +153,14 @@ async function cmdBuild(args: string[]) {
   console.log(`Output:   ${outputPath}`);
 
   try {
-    const contentJson = JSON.parse(readFileSync(contentPath, 'utf-8'));
+    const isMarkdown = isMarkdownPath(contentPath);
+    const source = readFileSync(contentPath, 'utf-8');
+    const contentJson = isMarkdown
+      ? parseMarkdown(source, {
+          documentType: typeOption ? validateDocType(typeOption) : undefined,
+          sourceName: basename(contentPath, extname(contentPath)),
+        })
+      : JSON.parse(source);
     const contentDir = dirname(contentPath);
 
     let template: DocumentTemplate;
@@ -122,6 +172,7 @@ async function cmdBuild(args: string[]) {
     }
 
     let docType = 'document';
+    if (isMarkdown) console.log(`  Markdown imported as: ${contentJson.type}`);
     if (contentJson && typeof contentJson === 'object' && 'type' in contentJson) {
       console.log(`  Structured document detected: ${contentJson.type}`);
       docType = contentJson.type === 'thesis' ? 'thesis'
@@ -352,6 +403,10 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function isMarkdownPath(path: string): boolean {
+  return ['.md', '.markdown'].includes(extname(path).toLowerCase());
+}
+
 function validateDocType(value: string | undefined): DocumentType {
   if (!value || !VALID_DOC_TYPES.includes(value as DocumentType)) {
     console.error(`\n\u274c Invalid document type: "${value || ''}"`);
@@ -374,7 +429,8 @@ function printHelp() {
 
   Commands:
     thesis parse <template.docx>     Parse template → JSON style DSL
-    thesis build <content.json>       Render document → .docx
+    thesis import <content.md>        Convert Markdown → structured JSON
+    thesis build <content.json|md>    Render document → .docx
     thesis init [--type <t>]          Create sample content file
 
   Document types (--type):
@@ -387,11 +443,14 @@ function printHelp() {
     thesis parse elsevier-template.docx --type journal
     thesis parse 公文模板.docx --type official --org "XX省人民政府"
 
+    thesis import manuscript.md --type thesis
+    thesis build manuscript.md -t template.json -o output.docx
     thesis build thesis-content.json -t template.json -o output.docx
 
   Options (build):
     -t <template.json>    Template file (default: built-in USTB)
     -o <output.docx>      Output path (default: input + .docx)
+    --type <t>            Markdown document type (overrides front matter)
   `);
 }
 

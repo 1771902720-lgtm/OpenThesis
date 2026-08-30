@@ -29,6 +29,9 @@ importers:
       '@openthesis/equation-engine':
         specifier: workspace:*
         version: link:../equation-engine
+      '@openthesis/markdown-parser':
+        specifier: workspace:*
+        version: link:../markdown-parser
       '@openthesis/template-parser':
         specifier: workspace:*
         version: link:../template-parser
@@ -80,6 +83,16 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
+      typescript:
+        specifier: ^5.5
+        version: 5.5.2
+
+  packages/markdown-parser:
+    dependencies:
+      '@openthesis/document-schema':
+        specifier: workspace:*
+        version: link:../document-schema
+    devDependencies:
       typescript:
         specifier: ^5.5
         version: 5.5.2

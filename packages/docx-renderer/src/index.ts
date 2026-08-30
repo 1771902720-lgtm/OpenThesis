@@ -12,8 +12,10 @@ import {
   BorderStyle, WidthType, ShadingType,
   convertMillimetersToTwip, Packer,
   ImageRun,
+  Math as DocxMath, MathRun, MathFraction, MathRadical, MathSuperScript,
+  MathSubScript, MathSubSuperScript, MathSum, MathIntegral,
 } from 'docx';
-import type { ISectionPropertiesOptions } from 'docx';
+import type { ISectionPropertiesOptions, MathComponent } from 'docx';
 import type {
   DocumentTemplate,
   ThesisDocument,
@@ -44,7 +46,8 @@ import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { resolve, extname, isAbsolute, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import JSZip from 'jszip';
-import { latexToPlainText } from '@openthesis/equation-engine';
+import { latexToMathAst, latexToPlainText } from '@openthesis/equation-engine';
+import type { LatexMathNode } from '@openthesis/equation-engine';
 
 // ESM-compatible __dirname
 const _filename = fileURLToPath(import.meta.url);
@@ -239,27 +242,78 @@ function renderEquation(
   block: EquationBlock,
   docType?: string,
 ): Paragraph {
-  // V2: convert LaTeX to Unicode with proper subscripts/superscripts/operators
+  // V3: emit native Office Math (OMML) for the supported LaTeX subset.
   const style = resolveStyle(_template, 'equation', docType);
-  const equationText = latexToPlainText(block.latex);
-  const numberSuffix = block.number ? `    (${block.number})` : '';
+  let equationChildren: MathComponent[];
+  try {
+    equationChildren = mathComponents(latexToMathAst(block.latex));
+  } catch {
+    equationChildren = [new MathRun(latexToPlainText(block.latex))];
+  }
+
+  const children = [new DocxMath({ children: equationChildren })];
+  if (block.number) {
+    children.push(new TextRun({
+      text: `    (${block.number})`,
+      size: style.font.size || 24,
+      font: {
+        ascii: style.font.name || 'Times New Roman',
+        hAnsi: style.font.name || 'Times New Roman',
+        eastAsia: style.font.eastAsia || '仿宋',
+        cs: style.font.name || 'Times New Roman',
+      },
+    }));
+  }
 
   return new Paragraph({
-    children: [
-      new TextRun({
-        text: equationText + numberSuffix,
-        size: style.font.size || 24,
-        font: {
-          ascii: style.font.name || 'Times New Roman',
-          hAnsi: style.font.name || 'Times New Roman',
-          eastAsia: style.font.eastAsia || '仿宋',
-          cs: style.font.name || 'Times New Roman',
-        },
-        italics: true,
-      }),
-    ],
+    children,
     alignment: AlignmentType.CENTER,
     spacing: { before: 120, after: 120, line: style.lineSpacing || 312 },
+  });
+}
+
+function mathComponents(nodes: LatexMathNode[]): MathComponent[] {
+  return nodes.map(node => {
+    switch (node.type) {
+      case 'run':
+        return new MathRun(node.text);
+      case 'fraction':
+        return new MathFraction({
+          numerator: mathComponents(node.numerator),
+          denominator: mathComponents(node.denominator),
+        });
+      case 'radical':
+        return new MathRadical({
+          children: mathComponents(node.children),
+          degree: node.degree ? mathComponents(node.degree) : undefined,
+        });
+      case 'script': {
+        const base = mathComponents(node.base);
+        if (node.subScript && node.superScript) {
+          return new MathSubSuperScript({
+            children: base,
+            subScript: mathComponents(node.subScript),
+            superScript: mathComponents(node.superScript),
+          });
+        }
+        if (node.subScript) {
+          return new MathSubScript({ children: base, subScript: mathComponents(node.subScript) });
+        }
+        return new MathSuperScript({ children: base, superScript: mathComponents(node.superScript ?? []) });
+      }
+      case 'sum':
+        return new MathSum({
+          children: [new MathRun('')],
+          subScript: node.subScript ? mathComponents(node.subScript) : undefined,
+          superScript: node.superScript ? mathComponents(node.superScript) : undefined,
+        });
+      case 'integral':
+        return new MathIntegral({
+          children: [new MathRun('')],
+          subScript: node.subScript ? mathComponents(node.subScript) : undefined,
+          superScript: node.superScript ? mathComponents(node.superScript) : undefined,
+        });
+    }
   });
 }
 

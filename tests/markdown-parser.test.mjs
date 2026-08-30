@@ -1,0 +1,103 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { parseMarkdown, parseMarkdownBlocks } from '../packages/markdown-parser/dist/index.js';
+
+test('parses thesis front matter and nested Markdown sections', () => {
+  const document = parseMarkdown(`---
+type: thesis
+title: "振动控制研究"
+author: 张三
+degree: master
+keywords: [振动, 控制]
+---
+# This heading is not duplicated
+
+## 第一章 绪论
+
+研究背景正文。
+
+### 研究方法
+
+- 建立模型
+- 完成实验
+
+$$E = mc^2$$
+`);
+
+  assert.equal(document.type, 'thesis');
+  assert.equal(document.meta.title, '振动控制研究');
+  assert.deepEqual(document.meta.keywords, ['振动', '控制']);
+  assert.equal(document.sections.length, 1);
+  assert.equal(document.sections[0].title, '第一章 绪论');
+  assert.equal(document.sections[0].subsections[0].title, '研究方法');
+  assert.deepEqual(
+    document.sections[0].subsections[0].content.map(block => block.type),
+    ['list_item', 'list_item', 'equation'],
+  );
+});
+
+test('parses GFM-style tables, figures, quotes, code, and page breaks', () => {
+  const blocks = parseMarkdownBlocks(`
+| 指标 | 数值 |
+| --- | ---: |
+| 精度 | 0.98 |
+
+![实验结果](figures/result.png "Figure 1")
+
+> 可复现性优先。
+
+\`\`\`ts
+const value = 42;
+\`\`\`
+
+<!-- pagebreak -->
+`);
+
+  assert.deepEqual(blocks.map(block => block.type), [
+    'table', 'figure', 'blockquote', 'code_block', 'page_break',
+  ]);
+  assert.deepEqual(blocks[0].headers, ['指标', '数值']);
+  assert.equal(blocks[1].path, 'figures/result.png');
+  assert.equal(blocks[3].language, 'ts');
+});
+
+test('creates journal and official document metadata', () => {
+  const journal = parseMarkdown(`---
+type: journal
+title: A Reproducible Study
+authors: [Alice, Bob]
+affiliation: Open Research Lab
+keywords: [reproducibility, documents]
+---
+## Methods
+Method details.
+`);
+  assert.equal(journal.type, 'journal');
+  assert.equal(journal.meta.authors.length, 2);
+  assert.equal(journal.meta.authors[0].affiliations[0].institution, 'Open Research Lab');
+  assert.equal(journal.sections[0].type, 'methods');
+
+  const official = parseMarkdown(`---
+type: official
+title: 关于开展测试工作的通知
+authority: XX研究院
+documentNumber: X研发〔2026〕1号
+category: 通知
+recipients: [各部门, 各中心]
+date: 2026年8月30日
+---
+## 一、工作要求
+请认真组织实施。
+`);
+  assert.equal(official.type, 'official');
+  assert.equal(official.meta.issuingAuthority, 'XX研究院');
+  assert.deepEqual(official.meta.primaryRecipients, ['各部门', '各中心']);
+  assert.equal(official.body[0].type, 'heading2');
+});
+
+test('rejects unsupported front-matter document types', () => {
+  assert.throws(
+    () => parseMarkdown('---\ntype: slides\n---\n# Demo'),
+    /Unsupported Markdown document type/,
+  );
+});

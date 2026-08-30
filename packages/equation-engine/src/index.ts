@@ -1,9 +1,8 @@
 // ============================================================
 // @openthesis/equation-engine — LaTeX → Office Math Engine
 // ============================================================
-// V2: Unicode fallback + pandoc OMML integration
-// When pandoc is available, generates native Word OMML equations.
-// Falls back to Unicode plain-text conversion otherwise.
+// V3: LaTeX math AST for native DOCX OMML rendering.
+// Keeps Unicode fallback and optional Pandoc extraction for compatibility.
 // ============================================================
 
 import { execFileSync } from 'child_process';
@@ -14,6 +13,21 @@ import { randomUUID } from 'crypto';
 import AdmZip from 'adm-zip';
 
 // ── Public API ────────────────────────────────────────────
+
+export type LatexMathNode =
+  | { type: 'run'; text: string }
+  | { type: 'fraction'; numerator: LatexMathNode[]; denominator: LatexMathNode[] }
+  | { type: 'radical'; children: LatexMathNode[]; degree?: LatexMathNode[] }
+  | { type: 'script'; base: LatexMathNode[]; subScript?: LatexMathNode[]; superScript?: LatexMathNode[] }
+  | { type: 'sum' | 'integral'; subScript?: LatexMathNode[]; superScript?: LatexMathNode[] };
+
+/**
+ * Parse a practical LaTeX math subset into a renderer-neutral tree.
+ * The DOCX renderer maps this tree to native Office Math (OMML) elements.
+ */
+export function latexToMathAst(latex: string): LatexMathNode[] {
+  return new LatexMathParser(latex).parse();
+}
 
 /**
  * Render a LaTeX equation string to OMML XML (native Word equation).
@@ -111,6 +125,153 @@ export function isLatexMath(text: string): boolean {
 export function renderEquation(latex: string): string {
   return latexToOMML(latex);
 }
+
+// ── Native math AST ──────────────────────────────────────
+
+class LatexMathParser {
+  private index = 0;
+
+  constructor(private readonly source: string) {}
+
+  parse(stopCharacter?: string): LatexMathNode[] {
+    const nodes: LatexMathNode[] = [];
+    while (this.index < this.source.length) {
+      if (stopCharacter && this.source[this.index] === stopCharacter) break;
+      const atom = this.parseAtom();
+      if (atom.length === 0) continue;
+
+      let subScript: LatexMathNode[] | undefined;
+      let superScript: LatexMathNode[] | undefined;
+      this.skipWhitespace();
+      while (this.source[this.index] === '_' || this.source[this.index] === '^') {
+        const marker = this.source[this.index];
+        this.index += 1;
+        const value = this.parseScriptValue();
+        if (marker === '_') subScript = value;
+        else superScript = value;
+        this.skipWhitespace();
+      }
+
+      if (subScript || superScript) {
+        const only = atom.length === 1 ? atom[0] : undefined;
+        if (only?.type === 'sum' || only?.type === 'integral') {
+          appendMathNode(nodes, { ...only, subScript, superScript });
+        } else {
+          appendMathNode(nodes, { type: 'script', base: atom, subScript, superScript });
+        }
+      } else {
+        for (const node of atom) appendMathNode(nodes, node);
+      }
+    }
+    return nodes;
+  }
+
+  private parseAtom(): LatexMathNode[] {
+    const character = this.source[this.index];
+    if (character === undefined) return [];
+    if (/\s/.test(character)) {
+      this.skipWhitespace();
+      return [{ type: 'run', text: ' ' }];
+    }
+    if (character === '{') {
+      this.index += 1;
+      const children = this.parse('}');
+      if (this.source[this.index] === '}') this.index += 1;
+      return children;
+    }
+    if (character !== '\\') {
+      this.index += 1;
+      return [{ type: 'run', text: character }];
+    }
+
+    this.index += 1;
+    const command = this.readCommand();
+    if (!command) return [];
+    if (command === 'frac' || command === 'dfrac' || command === 'tfrac') {
+      return [{
+        type: 'fraction',
+        numerator: this.parseRequiredGroup(),
+        denominator: this.parseRequiredGroup(),
+      }];
+    }
+    if (command === 'sqrt') {
+      const degree = this.parseOptionalGroup('[', ']');
+      return [{ type: 'radical', children: this.parseRequiredGroup(), degree }];
+    }
+    if (command === 'sum') return [{ type: 'sum' }];
+    if (command === 'int' || command === 'iint' || command === 'iiint') {
+      const integralCount = command === 'int' ? 1 : command === 'iint' ? 2 : 3;
+      return Array.from({ length: integralCount }, () => ({ type: 'integral' as const }));
+    }
+    if (['text', 'textrm', 'mathrm', 'mathbf', 'mathit', 'operatorname'].includes(command)) {
+      return this.parseRequiredGroup();
+    }
+    if (command === 'left' || command === 'right') return this.parseAtom();
+    if (command === ',' || command === ':' || command === ';' || command === 'quad') {
+      return [{ type: 'run', text: command === 'quad' ? '    ' : ' ' }];
+    }
+    if (command === 'qquad') return [{ type: 'run', text: '        ' }];
+    if (command === '!' || command === ' ') return [];
+
+    return [{ type: 'run', text: MATH_SYMBOLS[command] ?? command }];
+  }
+
+  private parseRequiredGroup(): LatexMathNode[] {
+    this.skipWhitespace();
+    if (this.source[this.index] !== '{') return this.parseAtom();
+    this.index += 1;
+    const children = this.parse('}');
+    if (this.source[this.index] === '}') this.index += 1;
+    return children;
+  }
+
+  private parseOptionalGroup(open: string, close: string): LatexMathNode[] | undefined {
+    this.skipWhitespace();
+    if (this.source[this.index] !== open) return undefined;
+    this.index += 1;
+    const children = this.parse(close);
+    if (this.source[this.index] === close) this.index += 1;
+    return children;
+  }
+
+  private parseScriptValue(): LatexMathNode[] {
+    this.skipWhitespace();
+    return this.parseRequiredGroup();
+  }
+
+  private readCommand(): string {
+    const start = this.index;
+    while (/[A-Za-z]/.test(this.source[this.index] ?? '')) this.index += 1;
+    if (this.index > start) return this.source.slice(start, this.index);
+    const command = this.source[this.index] ?? '';
+    this.index += command ? 1 : 0;
+    return command;
+  }
+
+  private skipWhitespace(): void {
+    while (/\s/.test(this.source[this.index] ?? '')) this.index += 1;
+  }
+}
+
+function appendMathNode(nodes: LatexMathNode[], node: LatexMathNode): void {
+  const previous = nodes[nodes.length - 1];
+  if (previous?.type === 'run' && node.type === 'run') previous.text += node.text;
+  else nodes.push(node);
+}
+
+const MATH_SYMBOLS: Record<string, string> = {
+  Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Xi: 'Ξ', Pi: 'Π',
+  Sigma: 'Σ', Upsilon: 'Υ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω',
+  alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', varepsilon: 'ε',
+  zeta: 'ζ', eta: 'η', theta: 'θ', vartheta: 'ϑ', iota: 'ι', kappa: 'κ',
+  lambda: 'λ', mu: 'μ', nu: 'ν', xi: 'ξ', pi: 'π', rho: 'ρ', sigma: 'σ',
+  tau: 'τ', upsilon: 'υ', phi: 'φ', varphi: 'φ', chi: 'χ', psi: 'ψ', omega: 'ω',
+  infinity: '∞', infty: '∞', partial: '∂', nabla: '∇', prod: '∏',
+  propto: '∝', times: '×', cdot: '·', pm: '±', mp: '∓', leq: '≤', geq: '≥',
+  neq: '≠', approx: '≈', equiv: '≡', sim: '∼', parallel: '∥', perp: '⊥',
+  to: '→', rightarrow: '→', leftarrow: '←', Rightarrow: '⇒', Leftarrow: '⇐',
+  ldots: '…', cdots: '⋯', ell: 'ℓ', hbar: 'ℏ', Re: 'ℜ', Im: 'ℑ',
+};
 
 // ── OMML generation via pandoc ────────────────────────────
 

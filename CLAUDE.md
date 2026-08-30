@@ -8,10 +8,13 @@ Parse any .docx template (thesis, journal article, or official document), write 
 ```
 packages/
   document-schema/     → Domain models: Thesis, JournalArticle, OfficialDocument
+  markdown-parser/     → Markdown + front matter → typed document schema
   template-parser/     → .docx → JSON style DSL (JSZip + fast-xml-parser)
   docx-renderer/       → JSON content + template → .docx (dolanmiu/docx)
-  equation-engine/     → LaTeX → Plain Text (V1) / OMML (V3)
-  cli/                 → `thesis parse|build|init` commands
+  equation-engine/     → LaTeX math AST + Unicode/Pandoc compatibility fallbacks
+  cli/                 → `thesis parse|import|build|init` commands
+
+.codex/skills/openthesis/ → Agent-ready skill, wrapper, and focused references
 
 examples/
   sample-thesis.json   → Sample thesis content
@@ -58,6 +61,10 @@ thesis init --type official  # → official-content.json
 
 # Build documents
 thesis build <content.json> -t <template.json> -o output.docx
+
+# Import or directly build Markdown
+thesis import <manuscript.md> --type thesis -o content.json
+thesis build <manuscript.md> --type thesis -t <template.json> -o output.docx
 ```
 
 ## Current Limitations
@@ -65,14 +72,14 @@ thesis build <content.json> -t <template.json> -o output.docx
 | Area | Limitation | Plan |
 |------|-----------|------|
 | Style role detection | Regex-based, fails on auto-numbered styles | V4: ML/layout-based |
-| Equation rendering | Plain text only, no OMML | V3: LaTeX → MathML → OMML |
-| Image embedding | Placeholder text only | V2: Read + embed image files |
+| Equation rendering | Native OMML covers the core LaTeX subset | V3: expand macros and environments |
 | Template parsing | Works best with real Word templates | Current: works for most templates |
-| Column support | Single-column only | V2: Double-column for journals |
+| Markdown inline styling | Paragraph schema stores plain text | Future: rich inline ranges |
+| Markdown dialect | Predictable manuscript subset | Expand only with compatibility tests |
 
 ## Next Steps
-1. Get real university .docx templates (created in Word) to test parser quality
-2. Add image embedding to docx-renderer
-3. Add OMML equation generation (LaTeX → MathML → OMML)
-4. Add Markdown → JSON content parser
-5. Template marketplace (community-contributed templates)
+1. Expand native OMML coverage for advanced LaTeX macros and environments
+2. Get real university and journal templates to expand parser compatibility fixtures
+3. Add ML-assisted layout-role understanding behind deterministic fallbacks
+4. Add agent content-generation workflows on top of the typed schema
+5. Build a community-contributed template marketplace

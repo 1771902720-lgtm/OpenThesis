@@ -28,6 +28,7 @@ pnpm check
 
 **Project structure:**
 - `packages/document-schema` — Type definitions (no deps)
+- `packages/markdown-parser` — Markdown and front-matter import
 - `packages/template-parser` — DOCX parsing logic
 - `packages/docx-renderer` — DOCX generation
 - `packages/equation-engine` — Equation rendering
@@ -49,6 +50,7 @@ pnpm build            # Build all packages
 pnpm test             # Run the automated test suite
 pnpm check            # Build, then run all tests (same gate as CI)
 pnpm cli parse ...    # Test the parser
+pnpm cli import ...   # Convert Markdown to structured JSON
 pnpm cli build ...    # Test the renderer
 pnpm cli init         # Create sample content
 ```
