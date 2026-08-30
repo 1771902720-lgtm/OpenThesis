@@ -115,14 +115,16 @@ export function renderEquation(latex: string): string {
 // ── OMML generation via pandoc ────────────────────────────
 
 function generateOMMLviaPandoc(latex: string): string | null {
+  let mdPath: string | undefined;
+  let docxPath: string | undefined;
   try {
     // Create a minimal Markdown file with the equation
     const tmpDir = join(tmpdir(), 'openthesis-omml');
     if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true });
 
     const id = randomUUID().slice(0, 8);
-    const mdPath = join(tmpDir, `eq-${id}.md`);
-    const docxPath = join(tmpDir, `eq-${id}.docx`);
+    mdPath = join(tmpDir, `eq-${id}.md`);
+    docxPath = join(tmpDir, `eq-${id}.docx`);
 
     // Wrap in display math for pandoc
     const safeLatex = latex.replace(/`/g, '\\`');
@@ -138,12 +140,15 @@ function generateOMMLviaPandoc(latex: string): string | null {
     // Extract OMML from the generated DOCX
     const omml = extractOMML(docxPath);
 
-    // Cleanup
-    try { unlinkSync(mdPath); unlinkSync(docxPath); } catch {}
-
     return omml;
   } catch {
     return null;  // pandoc not available, fall back to Unicode
+  } finally {
+    for (const path of [mdPath, docxPath]) {
+      if (path && existsSync(path)) {
+        try { unlinkSync(path); } catch {}
+      }
+    }
   }
 }
 

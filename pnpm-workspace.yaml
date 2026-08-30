@@ -1,2 +1,5 @@
 packages:
   - 'packages/*'
+
+overrides:
+  nanoid: ^5.1.16

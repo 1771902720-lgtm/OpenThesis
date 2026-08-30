@@ -44,12 +44,12 @@
   },
   "dependencies": {
     "@openthesis/document-schema": "workspace:*",
+    "@openthesis/equation-engine": "workspace:*",
     "docx": "^9.5",
     "jszip": "^3.10.1"
   },
   "devDependencies": {
-    "@types/jszip": "^3.4.1",
-    "@types/node": "^20",
+    "@types/node": "^22",
     "typescript": "^5.5"
   }
 }

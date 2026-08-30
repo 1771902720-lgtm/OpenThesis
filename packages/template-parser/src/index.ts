@@ -12,19 +12,9 @@ import type {
   TemplateMeta,
   PageSettings,
   ParagraphStyle,
-  FontSettings,
   ParagraphFormatting,
   BlockType,
 } from '@openthesis/document-schema';
-
-// ── DOCX XML Namespaces ───────────────────────────────────
-const NS = {
-  w: 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
-  r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
-  mc: 'http://schemas.openxmlformats.org/markup-compatibility/2006',
-  wps: 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape',
-  wp: 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing',
-};
 
 // Create XML parser with namespace-aware settings
 function createParser(): XMLParser {
@@ -74,12 +64,12 @@ export async function parseTemplate(
 
   // 5. Build template
   const meta: TemplateMeta = {
-    organization: metaOverrides?.organization || 'Unknown Organization',
-    name: metaOverrides?.name || 'Untitled Template',
-    documentType: metaOverrides?.documentType || 'thesis',
-    parserVersion: '0.1.0',
-    parsedAt: new Date().toISOString(),
     ...metaOverrides,
+    organization: metaOverrides?.organization?.trim() || 'Unknown Organization',
+    name: metaOverrides?.name?.trim() || 'Untitled Template',
+    documentType: metaOverrides?.documentType || 'thesis',
+    parserVersion: '0.2.0',
+    parsedAt: new Date().toISOString(),
   };
 
   // Convert to our style format
@@ -251,7 +241,10 @@ function extractRunProps(rPr: any): RawRunProps | undefined {
     props.italic = value !== '0' && value !== 'false';
   }
   // Underline
-  if (rPr['w:u']) props.underline = rPr['w:u']['@_w:val'] !== 'none';
+  if (rPr['w:u'] !== undefined) {
+    const value = rPr['w:u']?.['@_w:val'];
+    props.underline = value !== 'none' && value !== '0' && value !== 'false';
+  }
   // Color
   if (rPr['w:color']) props.color = rPr['w:color']['@_w:val'];
 

@@ -9,7 +9,7 @@
 // ============================================================
 
 import { readFileSync, writeFileSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { resolve, dirname, extname } from 'path';
 import { parseTemplate } from '@openthesis/template-parser';
 import { renderLegacy, createUSTBTemplate, renderDocument } from '@openthesis/docx-renderer';
 import type { DocumentTemplate, DocumentType, LegacyDocumentJSON, ThesisDocument, JournalArticle, OfficialDocument } from '@openthesis/document-schema';
@@ -22,7 +22,13 @@ async function main() {
     case 'parse':   await cmdParse(args.slice(1)); break;
     case 'build':   await cmdBuild(args.slice(1)); break;
     case 'init':    cmdInit(args.slice(1)); break;
-    default:        printHelp(); process.exit(1);
+    case '--help':
+    case '-h':
+    case undefined: printHelp(); break;
+    default:
+      console.error(`Unknown command: ${command}`);
+      printHelp();
+      process.exit(1);
   }
 }
 
@@ -35,10 +41,12 @@ async function cmdParse(args: string[]) {
   }
 
   const templatePath = resolve(args[0]);
-  const typeIdx = args.indexOf('--type');
-  const orgIdx = args.indexOf('--org');
-  const docType = validateDocType(typeIdx >= 0 ? args[typeIdx + 1] : 'thesis');
-  const orgName = orgIdx >= 0 ? args[orgIdx + 1] : undefined;
+  if (extname(templatePath).toLowerCase() !== '.docx') {
+    console.error('Template input must be a .docx file.');
+    process.exit(1);
+  }
+  const docType = validateDocType(readOption(args, '--type') ?? 'thesis');
+  const orgName = readOption(args, '--org');
 
   console.log(`Parsing template: ${templatePath}`);
   console.log(`Document type:   ${docType}`);
@@ -51,7 +59,7 @@ async function cmdParse(args: string[]) {
       sourceFile: templatePath,
     });
 
-    const outPath = templatePath.replace(/\.docx?$/i, '.template.json');
+    const outPath = templatePath.slice(0, -extname(templatePath).length) + '.template.json';
     writeFileSync(outPath, JSON.stringify(template, null, 2), 'utf-8');
 
     console.log(`\n✅ Template parsed successfully!`);
@@ -71,8 +79,8 @@ async function cmdParse(args: string[]) {
         : '—';
       console.log(`     ${styleId} → ${role} (${fontInfo})`);
     }
-  } catch (err: any) {
-    console.error(`\n❌ Failed to parse template: ${err.message}`);
+  } catch (err: unknown) {
+    console.error(`\n❌ Failed to parse template: ${errorMessage(err)}`);
     process.exit(1);
   }
 }
@@ -83,11 +91,19 @@ async function cmdBuild(args: string[]) {
   }
 
   const contentPath = resolve(args[0]);
-  const tIdx = args.indexOf('-t');
-  const oIdx = args.indexOf('-o');
+  const templateOption = readOption(args, '-t');
+  const outputOption = readOption(args, '-o');
+  const templatePath = templateOption ? resolve(templateOption) : null;
+  const outputPath = outputOption
+    ? resolve(outputOption)
+    : extname(contentPath).toLowerCase() === '.json'
+      ? contentPath.slice(0, -extname(contentPath).length) + '.docx'
+      : contentPath + '.docx';
 
-  const templatePath = tIdx >= 0 ? resolve(args[tIdx + 1]) : null;
-  const outputPath = oIdx >= 0 ? resolve(args[oIdx + 1]) : contentPath.replace(/\.json$/i, '.docx');
+  if (outputPath === contentPath) {
+    console.error('Output path must be different from the content JSON path.');
+    process.exit(1);
+  }
 
   console.log(`Content:  ${contentPath}`);
   console.log(`Template: ${templatePath || '(built-in USTB)'}`);
@@ -124,13 +140,13 @@ async function cmdBuild(args: string[]) {
         : contentJson.title?.includes('公文') || contentJson.title?.includes('通知') ? 'official document'
         : 'document';
         
-      await renderLegacy(contentJson as LegacyDocumentJSON, template, outputPath);
+      await renderLegacy(contentJson as LegacyDocumentJSON, template, outputPath, contentDir);
     }
 
     console.log(`\n✅ ${docType} built successfully!`);
     console.log(`   Output: ${outputPath}`);
-  } catch (err: any) {
-    console.error(`\n❌ Failed to build: ${err.message}`);
+  } catch (err: unknown) {
+    console.error(`\n❌ Failed to build: ${errorMessage(err)}`);
     process.exit(1);
   }
 }
@@ -320,6 +336,21 @@ function printInitNext(type: DocumentType) {
 }
 
 const VALID_DOC_TYPES: DocumentType[] = ['thesis', 'journal', 'official'];
+
+function readOption(args: string[], flag: string): string | undefined {
+  const index = args.indexOf(flag);
+  if (index < 0) return undefined;
+  const value = args[index + 1];
+  if (!value || value.startsWith('-')) {
+    console.error(`Missing value for ${flag}.`);
+    process.exit(1);
+  }
+  return value;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 function validateDocType(value: string | undefined): DocumentType {
   if (!value || !VALID_DOC_TYPES.includes(value as DocumentType)) {

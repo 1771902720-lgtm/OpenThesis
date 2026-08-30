@@ -1,12 +1,15 @@
 <p align="center">
-  <img src="assets/banner.png" alt="OpenThesis Banner" width="800" />
+  <img src="assets/logo.png" alt="OpenThesis logo" width="180" />
 </p>
+
+<h1 align="center">OpenThesis</h1>
 
 <p align="center">
   <strong>AI-powered Document Template Engine</strong>
 </p>
 
 <p align="center">
+  <a href="https://github.com/1771902720-lgtm/OpenThesis/actions/workflows/ci.yml"><img src="https://github.com/1771902720-lgtm/OpenThesis/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <img src="https://img.shields.io/badge/status-V2-blue" alt="Status">
   <img src="https://img.shields.io/badge/node-%3E%3D22-success" alt="Node">
@@ -28,7 +31,7 @@ For **university theses**, **journal articles**, and **government official docum
 | Template **filling** (docxtemplater)    | Template **understanding** — knows what a heading, abstract, or 发文字号 IS |
 | One template format hardcoded           | Parse **any** `.docx` template → JSON style DSL                         |
 | Formatting parameters scattered in code | All formatting driven by the parsed template                            |
-| Markdown → LaTeX (pandoc/ThesisForge)   | Markdown → **DOCX** (what 95% of Chinese universities require)          |
+| Markdown → LaTeX (pandoc/ThesisForge)   | Structured JSON → **DOCX**, with Markdown import planned                |
 | Single document type                    | **Thesis + Journal + 公文** — one engine, three domains                   |
 
 ## What it does
@@ -43,7 +46,7 @@ graph TD
 
     subgraph Core ["2. Processing Engine (OpenThesis Core)"]
         C["⚙️ @openthesis/template-parser <br> (Extracts styles & layouts)"]
-        D["🔍 @openthesis/document-schema <br> (Validates semantic document structures)"]
+        D["🔍 @openthesis/document-schema <br> (Defines typed document structures)"]
         E["🎨 @openthesis/docx-renderer <br> (Generates final layout dynamically)"]
     end
 
@@ -90,21 +93,25 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 
 | `--type`   | Use Case           | Key Features                                                                       |
 | ---------- | ------------------ | ---------------------------------------------------------------------------------- |
-| `thesis`   | 学士/硕士/博士论文         | Cover page, abstract CN/EN, chapters, TOC, references, declaration, appendices     |
-| `journal`  | 学术期刊投稿             | Authors + affiliations, corresponding author, funding, IMRaD structure, references |
-| `official` | 党政机关公文 (GB/T 9704) | Red header, 发文字号, 签发人, 主送/抄送, 附件, signature block                                  |
+| `thesis`   | 学士/硕士/博士论文         | Structured cover, nested chapters, figures, tables, equations, references |
+| `journal`  | 学术期刊投稿             | Authors, affiliations, abstract, keywords, nested sections, references    |
+| `official` | 党政机关公文 (GB/T 9704) | Red header, 发文字号, 主送/抄送、附件和落款                                  |
 
 ### 公文示例 (Official Document)
 
 ```json
 {
-  "body_blocks": [
-    { "type": "red_header", "text": "XX省人民政府文件", "font_size_pt": 22 },
-    { "type": "document_number", "text": "X政发〔2026〕1号" },
-    { "type": "centered_text", "text": "关于做好2026年防汛工作的通知", "font_size_pt": 18, "bold": true },
-    { "type": "recipient_line", "text": "各市、州人民政府：", "recipientType": "primary" },
-    { "type": "paragraph", "text": "为切实做好2026年防汛工作..." },
-    { "type": "signature_block", "authority": "XX省人民政府", "date": "2026年6月13日" }
+  "type": "official",
+  "meta": {
+    "title": "关于做好2026年防汛工作的通知",
+    "issuingAuthority": "XX省人民政府",
+    "documentNumber": "X政发〔2026〕1号",
+    "documentCategory": "通知",
+    "primaryRecipients": ["各市、州人民政府"],
+    "date": "2026年6月13日"
+  },
+  "body": [
+    { "type": "paragraph", "text": "为切实做好2026年防汛工作……" }
   ]
 }
 ```
@@ -116,7 +123,7 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 | `@openthesis/document-schema` | —   | Domain models for thesis, journal, official documents      |
 | `@openthesis/template-parser` | —   | Parse `.docx` → JSON style DSL with inheritance resolution |
 | `@openthesis/docx-renderer`   | —   | Template-driven DOCX renderer (dolanmiu/docx)              |
-| `@openthesis/equation-engine` | —   | LaTeX → plain text (V1) / OMML (V3)                        |
+| `@openthesis/equation-engine` | —   | LaTeX → Unicode fallback; optional Pandoc OMML extraction  |
 | `@openthesis/cli`             | —   | Command-line interface: `thesis parse`, `init`, and `build` |
 
 ## Features
@@ -127,9 +134,10 @@ node packages/cli/dist/index.js build thesis-content.json -t template.json -o ou
 - ✅ **Complete table formatting** — Gridlines, header shading, column widths
 - ✅ **Chinese + Western font separation** — 中文宋体/黑体 + English Times New Roman
 - ✅ **Header/footer/page numbers** — With template-configurable text
+- ✅ **Image embedding** — PNG/JPEG/GIF/BMP detection, aspect ratio, and captions
+- ✅ **Lists, code blocks, and blockquotes** — Native document rendering
 - ✅ **Legacy format support** — Backward compatible with existing `{cover_blocks, body_blocks}` JSON
-- 🚧 OMML equation rendering (V3)
-- 🚧 Image embedding (V2)
+- 🚧 Native OMML insertion in rendered documents (V3)
 - 🚧 Markdown → JSON parser (V2)
 
 ## Tech Stack
@@ -165,8 +173,8 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | Phase | Goal                                            | Status     |
 | ----- | ----------------------------------------------- | ---------- |
 | V1    | Core engine: parse + render + CLI               | ✅ Done     |
-| V2    | Image embedding, Markdown parser, double-column | 🚧 Planned |
-| V3    | LaTeX → OMML equation engine                    | 🚧 Planned |
+| V2    | Images + double-column output; Markdown parser  | 🚧 In progress |
+| V3    | Native LaTeX → OMML insertion                   | 🚧 Planned |
 | V4    | ML-based template layout understanding          | 📋 Future  |
 | V5    | AI Agent: auto-generate thesis content          | 📋 Future  |
 | SaaS  | Template marketplace (community-contributed)    | 📋 Future  |
@@ -176,6 +184,13 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 This is an early-stage project. If you have a university/journal `.docx` template you'd like to add support for, please open an issue with the template attached (or a link to it).
 
 PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and [CLAUDE.md](CLAUDE.md) for architecture details.
+
+## Development checks
+
+```bash
+pnpm check          # strict TypeScript build + automated tests
+pnpm audit --prod   # production dependency security audit
+```
 
 ## License
 

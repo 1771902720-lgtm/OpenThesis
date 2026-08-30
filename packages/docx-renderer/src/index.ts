@@ -13,6 +13,7 @@ import {
   convertMillimetersToTwip, Packer,
   ImageRun,
 } from 'docx';
+import type { ISectionPropertiesOptions } from 'docx';
 import type {
   DocumentTemplate,
   ThesisDocument,
@@ -24,11 +25,26 @@ import type {
   BlockType,
   LegacyDocumentJSON,
   OpenThesisDocument,
+  HeadingBlock,
+  ParagraphBlock,
+  CenteredTextBlock,
+  EquationBlock,
+  FigureBlock,
+  TableBlock,
+  ListItemBlock,
+  CodeBlockBlock,
+  BlockquoteBlock,
+  RedHeaderBlock,
+  DocumentNumberBlock,
+  RecipientLineBlock,
+  SignatureBlockBlock,
+  AttachmentNoteBlock,
 } from '@openthesis/document-schema';
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { resolve, extname, isAbsolute, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import JSZip from 'jszip';
+import { latexToPlainText } from '@openthesis/equation-engine';
 
 // ESM-compatible __dirname
 const _filename = fileURLToPath(import.meta.url);
@@ -125,7 +141,7 @@ function resolveStyle(template: DocumentTemplate, blockType: BlockType, docType?
 
 function renderHeading(
   template: DocumentTemplate,
-  block: ContentBlock & { text: string; number?: string },
+  block: HeadingBlock,
   docType?: string,
 ): Paragraph {
   const style = resolveStyle(template, block.type, docType);
@@ -157,7 +173,7 @@ function renderHeading(
 
 function renderParagraph(
   template: DocumentTemplate,
-  block: ContentBlock & { text: string },
+  block: ParagraphBlock,
   docType?: string,
 ): Paragraph {
   const style = resolveStyle(template, block.type, docType);
@@ -191,7 +207,7 @@ function renderParagraph(
 
 function renderCenteredText(
   template: DocumentTemplate,
-  block: ContentBlock & { text: string; font_size_pt?: number; bold?: boolean },
+  block: CenteredTextBlock,
   docType?: string,
 ): Paragraph {
   const style = resolveStyle(template, 'centered_text', docType);
@@ -220,11 +236,12 @@ function renderCenteredText(
 
 function renderEquation(
   _template: DocumentTemplate,
-  block: ContentBlock & { latex: string; number?: string },
+  block: EquationBlock,
+  docType?: string,
 ): Paragraph {
   // V2: convert LaTeX to Unicode with proper subscripts/superscripts/operators
-  const style = resolveStyle(_template, 'equation');
-  const equationText = convertLatexToUnicode(block.latex);
+  const style = resolveStyle(_template, 'equation', docType);
+  const equationText = latexToPlainText(block.latex);
   const numberSuffix = block.number ? `    (${block.number})` : '';
 
   return new Paragraph({
@@ -246,94 +263,25 @@ function renderEquation(
   });
 }
 
-// ── Embedded LaTeX → Unicode converter (V2) ─────────────────
-// Full engine with OMML support lives in @openthesis/equation-engine
-
-const SUPERSCRIPTS: Record<string, string> = {
-  '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹',
-  '+':'⁺','-':'⁻','=':'⁼','(':'⁽',')':'⁾',
-  'a':'ᵃ','b':'ᵇ','c':'ᶜ','d':'ᵈ','e':'ᵉ','f':'ᶠ','g':'ᵍ','h':'ʰ',
-  'i':'ⁱ','j':'ʲ','k':'ᵏ','l':'ˡ','m':'ᵐ','n':'ⁿ','o':'ᵒ','p':'ᵖ',
-  'r':'ʳ','s':'ˢ','t':'ᵗ','u':'ᵘ','v':'ᵛ','w':'ʷ','x':'ˣ','y':'ʸ','z':'ᶻ',
-  'A':'ᴬ','B':'ᴮ','D':'ᴰ','E':'ᴱ','G':'ᴳ','H':'ᴴ','I':'ᴵ','J':'ᴶ',
-  'K':'ᴷ','L':'ᴸ','M':'ᴹ','N':'ᴺ','O':'ᴼ','P':'ᴾ','R':'ᴿ','T':'ᵀ',
-  'U':'ᵁ','V':'ⱽ','W':'ᵂ',
-  'α':'ᵅ','β':'ᵝ','γ':'ᵞ','δ':'ᵟ','ε':'ᵋ','θ':'ᶿ','φ':'ᵠ','χ':'ᵡ',
-};
-
-const SUBSCRIPTS: Record<string, string> = {
-  '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉',
-  '+':'₊','-':'₋','=':'₌','(':'₍',')':'₎',
-  'a':'ₐ','e':'ₑ','h':'ₕ','i':'ᵢ','j':'ⱼ','k':'ₖ','l':'ₗ',
-  'm':'ₘ','n':'ₙ','o':'ₒ','p':'ₚ','r':'ᵣ','s':'ₛ','t':'ₜ',
-  'u':'ᵤ','v':'ᵥ','x':'ₓ',
-  'β':'ᵦ','γ':'ᵧ','ρ':'ᵨ','φ':'ᵩ','χ':'ᵪ',
-};
-
-function charMap(text: string, map: Record<string, string>): string {
-  return [...text].map(c => map[c] || c).join('');
-}
-
-function convertLatexToUnicode(latex: string): string {
-  return latex
-    // Greek uppercase
-    .replace(/\\Gamma/g,'Γ').replace(/\\Delta/g,'Δ').replace(/\\Theta/g,'Θ')
-    .replace(/\\Lambda/g,'Λ').replace(/\\Xi/g,'Ξ').replace(/\\Pi/g,'Π')
-    .replace(/\\Sigma/g,'Σ').replace(/\\Upsilon/g,'Υ').replace(/\\Phi/g,'Φ')
-    .replace(/\\Psi/g,'Ψ').replace(/\\Omega/g,'Ω')
-    // Greek lowercase
-    .replace(/\\alpha/g,'α').replace(/\\beta/g,'β').replace(/\\gamma/g,'γ')
-    .replace(/\\delta/g,'δ').replace(/\\epsilon/g,'ε').replace(/\\varepsilon/g,'ε')
-    .replace(/\\zeta/g,'ζ').replace(/\\eta/g,'η').replace(/\\theta/g,'θ')
-    .replace(/\\vartheta/g,'ϑ').replace(/\\iota/g,'ι').replace(/\\kappa/g,'κ')
-    .replace(/\\lambda/g,'λ').replace(/\\mu/g,'μ').replace(/\\nu/g,'ν')
-    .replace(/\\xi/g,'ξ').replace(/\\pi/g,'π').replace(/\\rho/g,'ρ')
-    .replace(/\\sigma/g,'σ').replace(/\\tau/g,'τ').replace(/\\upsilon/g,'υ')
-    .replace(/\\phi/g,'φ').replace(/\\varphi/g,'φ').replace(/\\chi/g,'χ')
-    .replace(/\\psi/g,'ψ').replace(/\\omega/g,'ω')
-    // Operators & relations
-    .replace(/\\infty/g,'∞').replace(/\\partial/g,'∂').replace(/\\nabla/g,'∇')
-    .replace(/\\int/g,'∫').replace(/\\sum/g,'Σ').replace(/\\prod/g,'Π')
-    .replace(/\\sqrt/g,'√').replace(/\\propto/g,'∝')
-    .replace(/\\times/g,'×').replace(/\\cdot/g,'·')
-    .replace(/\\pm/g,'±').replace(/\\mp/g,'∓')
-    .replace(/\\leq/g,'≤').replace(/\\geq/g,'≥')
-    .replace(/\\neq/g,'≠').replace(/\\approx/g,'≈')
-    .replace(/\\equiv/g,'≡').replace(/\\sim/g,'∼')
-    .replace(/\\parallel/g,'∥').replace(/\\perp/g,'⊥')
-    .replace(/\\|/g,'‖')
-    // Structures
-    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)')
-    .replace(/\\text\{([^}]+)\}/g, '$1')
-    .replace(/\\mathrm\{([^}]+)\}/g, '$1')
-    .replace(/\\mathbf\{([^}]+)\}/g, '$1')
-    .replace(/\\bar\{([^}]+)\}/g, '$1̄')
-    .replace(/\\hat\{([^}]+)\}/g, '$1̂')
-    .replace(/\\tilde\{([^}]+)\}/g, '$1̃')
-    .replace(/\\vec\{([^}]+)\}/g, '$1⃗')
-    // Superscript / subscript (handles multi-char like ^{n+1}, _{max})
-    .replace(/\^\{([^}]+)\}/g, (_: string, p1: string) => charMap(p1, SUPERSCRIPTS))
-    .replace(/_\{([^}]+)\}/g, (_: string, p1: string) => charMap(p1, SUBSCRIPTS))
-    // Clean up
-    .replace(/[{}]/g, '')
-    .replace(/\\,/g, ' ').replace(/\\;/g, '  ')
-    .replace(/\\quad/g, '    ').replace(/\\qquad/g, '        ')
-    .trim();
-}
-
 function renderTable(
-  template: DocumentTemplate,
-  block: ContentBlock & {
-    caption: string;
-    headers: string[];
-    data: string[][];
-    showGridlines?: boolean;
-    headerShading?: boolean;
-  },
+  _template: DocumentTemplate,
+  block: TableBlock,
 ): [Paragraph, Table, Paragraph] {
   const colCount = block.headers.length;
+  if (colCount === 0) {
+    throw new Error(`Table "${block.caption}" must define at least one header column.`);
+  }
   const totalWidth = 8504; // A4 printable width in DXA
-  const colWidth = Math.floor(totalWidth / colCount);
+  if (block.columnWidths && block.columnWidths.length !== colCount) {
+    throw new Error(`Table "${block.caption}" has ${colCount} columns but ${block.columnWidths.length} column widths.`);
+  }
+  if (block.columnWidths?.some(width => !Number.isFinite(width) || width <= 0)) {
+    throw new Error(`Table "${block.caption}" column widths must be positive numbers.`);
+  }
+  const colWidths = block.columnWidths ?? Array.from(
+    { length: colCount },
+    () => Math.floor(totalWidth / colCount),
+  );
 
   const showGrid = block.showGridlines !== false;
   const showShading = block.headerShading !== false;
@@ -361,7 +309,7 @@ function renderTable(
     tableHeader: true,
     children: block.headers.map((h, ci) =>
       new TableCell({
-        width: { size: colWidth, type: WidthType.DXA },
+        width: { size: colWidths[ci], type: WidthType.DXA },
         borders: showGrid ? {
           top: BO,
           bottom: BO,
@@ -393,9 +341,9 @@ function renderTable(
   const dataRows = block.data.map((row, ri) => {
     const isLast = ri === block.data.length - 1;
     return new TableRow({
-      children: row.map((cell, ci) =>
+      children: block.headers.map((_, ci) =>
         new TableCell({
-          width: { size: colWidth, type: WidthType.DXA },
+          width: { size: colWidths[ci], type: WidthType.DXA },
           borders: showGrid ? {
             top: BI,
             bottom: isLast ? BO : BI,
@@ -408,7 +356,7 @@ function renderTable(
             new Paragraph({
               children: [
                 new TextRun({
-                  text: cell,
+                  text: row[ci] ?? '',
                   size: 21,
                   font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
                 }),
@@ -442,7 +390,7 @@ function renderTable(
 
 function getImageSize(buffer: Buffer): { width: number; height: number } | null {
   // Check PNG signature
-  if (buffer.readUInt32BE(0) === 0x89504E47 && buffer.readUInt32BE(4) === 0x0D0A1A0A) {
+  if (buffer.length >= 24 && buffer.readUInt32BE(0) === 0x89504E47 && buffer.readUInt32BE(4) === 0x0D0A1A0A) {
     return {
       width: buffer.readUInt32BE(16),
       height: buffer.readUInt32BE(20)
@@ -450,7 +398,7 @@ function getImageSize(buffer: Buffer): { width: number; height: number } | null 
   }
   
   // Check JPEG signature
-  if (buffer.readUInt16BE(0) === 0xFFD8) {
+  if (buffer.length >= 4 && buffer.readUInt16BE(0) === 0xFFD8) {
     let offset = 2;
     while (offset + 2 < buffer.length) {
       const marker = buffer.readUInt16BE(offset);
@@ -473,7 +421,7 @@ function getImageSize(buffer: Buffer): { width: number; height: number } | null 
   }
   
   // Check GIF signature
-  if (buffer.readUInt32BE(0) === 0x47494638 && (buffer.readUInt16BE(4) === 0x3761 || buffer.readUInt16BE(4) === 0x3961)) {
+  if (buffer.length >= 10 && buffer.readUInt32BE(0) === 0x47494638 && (buffer.readUInt16BE(4) === 0x3761 || buffer.readUInt16BE(4) === 0x3961)) {
     return {
       width: buffer.readUInt16LE(6),
       height: buffer.readUInt16LE(8)
@@ -483,11 +431,19 @@ function getImageSize(buffer: Buffer): { width: number; height: number } | null 
   return null;
 }
 
+function detectImageType(buffer: Buffer): 'png' | 'jpg' | 'gif' | 'bmp' | null {
+  if (buffer.length >= 8 && buffer.readUInt32BE(0) === 0x89504E47 && buffer.readUInt32BE(4) === 0x0D0A1A0A) return 'png';
+  if (buffer.length >= 2 && buffer.readUInt16BE(0) === 0xFFD8) return 'jpg';
+  if (buffer.length >= 6 && buffer.toString('ascii', 0, 3) === 'GIF') return 'gif';
+  if (buffer.length >= 2 && buffer.toString('ascii', 0, 2) === 'BM') return 'bmp';
+  return null;
+}
+
 function renderFigure(
   _template: DocumentTemplate,
-  block: ContentBlock & { caption: string; path: string; width?: number; height?: number },
+  block: FigureBlock,
   contentDir?: string,
-): Paragraph {
+): Paragraph[] {
   const ext = extname(block.path).toLowerCase();
   let type: 'png' | 'jpg' | 'gif' | 'bmp' = 'png';
   if (ext === '.jpg' || ext === '.jpeg') type = 'jpg';
@@ -502,6 +458,7 @@ function renderFigure(
   if (existsSync(imgPath)) {
     try {
       const buffer = readFileSync(imgPath);
+      type = detectImageType(buffer) ?? type;
       const size = getImageSize(buffer);
       
       let width = block.width;
@@ -526,7 +483,7 @@ function renderFigure(
         height = height || 300;
       }
 
-      return new Paragraph({
+      const image = new Paragraph({
         children: [
           new ImageRun({
             data: buffer,
@@ -540,12 +497,24 @@ function renderFigure(
         alignment: AlignmentType.CENTER,
         spacing: { before: 120, after: 120, line: 312 },
       });
-    } catch (e: any) {
-      console.warn(`Failed to embed image at ${imgPath}: ${e.message}`);
+      const numberPrefix = block.number ? `${block.number}  ` : '';
+      const caption = new Paragraph({
+        children: [new TextRun({
+          text: numberPrefix + block.caption,
+          size: 21,
+          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
+        })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 120, line: 312 },
+      });
+      return [image, caption];
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Failed to embed image at ${imgPath}: ${message}`);
     }
   }
 
-  return new Paragraph({
+  return [new Paragraph({
     children: [
       new TextRun({
         text: `[图: ${block.caption} (未找到图片: ${block.path})]`,
@@ -556,7 +525,7 @@ function renderFigure(
     ],
     alignment: AlignmentType.CENTER,
     spacing: { before: 120, after: 120, line: 312 },
-  });
+  })];
 }
 
 function renderSpacer(_template: DocumentTemplate, lines: number): Paragraph[] {
@@ -573,7 +542,7 @@ function renderPageBreak(): Paragraph {
 }
 
 function renderHorizontalRule(): Paragraph {
-  // TODO: implement with a border-bottom hack or a drawing element
+  // Word has no native horizontal-rule paragraph, so use a bottom border.
   return new Paragraph({
     children: [],
     border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' } },
@@ -583,7 +552,7 @@ function renderHorizontalRule(): Paragraph {
 // ── Official Document Block Renderers ──────────────────────
 
 function renderRedHeader(
-  block: ContentBlock & { text: string; font_size_pt?: number },
+  block: RedHeaderBlock,
 ): Paragraph {
   // GB/T 9704-2012: 发文机关标志用方正小标宋简体，红色，字号自行酌定（以不大于上级机关为原则）
   const size = (block.font_size_pt || 22) * 2; // pt → half-pt，默认22pt
@@ -603,7 +572,7 @@ function renderRedHeader(
 }
 
 function renderDocumentNumber(
-  block: ContentBlock & { text: string },
+  block: DocumentNumberBlock,
 ): Paragraph {
   // GB/T 9704-2012: 发文字号用3号仿宋体（16pt）
   return new Paragraph({
@@ -620,7 +589,7 @@ function renderDocumentNumber(
 }
 
 function renderRecipientLine(
-  block: ContentBlock & { text: string; recipientType: 'primary' | 'cc' },
+  block: RecipientLineBlock,
 ): Paragraph {
   // GB/T 9704-2012: 主送机关用3号仿宋体（16pt）
   const prefix = block.recipientType === 'cc' ? '抄送：' : '';
@@ -638,7 +607,7 @@ function renderRecipientLine(
 }
 
 function renderSignatureBlock(
-  block: ContentBlock & { authority: string; date: string },
+  block: SignatureBlockBlock,
 ): [Paragraph, Paragraph] {
   // GB/T 9704-2012: 发文机关署名和成文日期用3号仿宋体（16pt）
   return [
@@ -670,7 +639,7 @@ function renderSignatureBlock(
 }
 
 function renderAttachmentNote(
-  block: ContentBlock & { attachments: string[] },
+  block: AttachmentNoteBlock,
 ): Paragraph[] {
   // GB/T 9704-2012: 附件说明用3号仿宋体（16pt）
   const prefix = '附件：';
@@ -690,6 +659,54 @@ function renderAttachmentNote(
   ];
 }
 
+function renderListItem(block: ListItemBlock): Paragraph {
+  const level = Math.max(0, block.level ?? 0);
+  const marker = block.marker ?? (block.ordered ? '1.' : '•');
+  return new Paragraph({
+    children: [new TextRun({
+      text: `${marker} ${block.text}`,
+      size: 24,
+      font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
+    })],
+    indent: { left: 360 * (level + 1), hanging: 240 },
+    spacing: { after: 60, line: 312 },
+  });
+}
+
+function renderCodeBlock(block: CodeBlockBlock): Paragraph {
+  const lines = block.text.split(/\r?\n/);
+  return new Paragraph({
+    children: lines.map((line, index) => new TextRun({
+      text: line || ' ',
+      break: index === 0 ? undefined : 1,
+      size: 20,
+      font: { ascii: 'Courier New', hAnsi: 'Courier New', eastAsia: '等线', cs: 'Courier New' },
+    })),
+    indent: { left: 360, right: 360 },
+    border: {
+      top: { style: BorderStyle.SINGLE, size: 4, color: 'BFBFBF' },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: 'BFBFBF' },
+      left: { style: BorderStyle.SINGLE, size: 4, color: 'BFBFBF' },
+      right: { style: BorderStyle.SINGLE, size: 4, color: 'BFBFBF' },
+    },
+    spacing: { before: 120, after: 120, line: 276 },
+  });
+}
+
+function renderBlockquote(block: BlockquoteBlock): Paragraph {
+  return new Paragraph({
+    children: [new TextRun({
+      text: block.text,
+      italics: true,
+      size: 24,
+      font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
+    })],
+    indent: { left: 480, right: 240 },
+    border: { left: { style: BorderStyle.SINGLE, size: 12, color: '808080' } },
+    spacing: { before: 120, after: 120, line: 312 },
+  });
+}
+
 // ── Block Dispatcher ──────────────────────────────────────
 
 /**
@@ -707,24 +724,24 @@ function processBlock(
     case 'heading2':
     case 'heading3':
     case 'heading4':
-      return [renderHeading(template, block as any, docType)];
+      return [renderHeading(template, block, docType)];
 
     case 'paragraph':
     case 'paragraph_no_indent':
-      return [renderParagraph(template, block as any, docType)];
+      return [renderParagraph(template, block, docType)];
 
     case 'centered_text':
-      return [renderCenteredText(template, block as any, docType)];
+      return [renderCenteredText(template, block, docType)];
 
     case 'equation':
     case 'equation_numbered':
-      return [renderEquation(template, block as any)];
+      return [renderEquation(template, block, docType)];
 
     case 'table':
-      return renderTable(template, block as any);
+      return renderTable(template, block);
 
     case 'figure':
-      return [renderFigure(template, block as any, contentDir)];
+      return renderFigure(template, block, contentDir);
 
     case 'spacer':
       return renderSpacer(template, block.lines);
@@ -736,30 +753,31 @@ function processBlock(
       return [renderHorizontalRule()];
 
     case 'red_header':
-      return [renderRedHeader(block as any)];
+      return [renderRedHeader(block)];
 
     case 'document_number':
-      return [renderDocumentNumber(block as any)];
+      return [renderDocumentNumber(block)];
 
     case 'recipient_line':
-      return [renderRecipientLine(block as any)];
+      return [renderRecipientLine(block)];
 
     case 'signature_block':
-      return renderSignatureBlock(block as any);
+      return renderSignatureBlock(block);
 
     case 'attachment_note':
-      return renderAttachmentNote(block as any);
+      return renderAttachmentNote(block);
 
     case 'list_item':
+      return [renderListItem(block)];
+
     case 'code_block':
+      return [renderCodeBlock(block)];
+
     case 'blockquote':
-      // TODO: Implement in V2
-      return [new Paragraph({
-        children: [new TextRun({ text: `[${block.type}: ${(block as any).text}]`, size: 24 })],
-      })];
+      return [renderBlockquote(block)];
 
     default:
-      console.warn(`Unknown block type: ${(block as any).type}`);
+      console.warn(`Unknown block type: ${String((block as { type?: unknown }).type)}`);
       return [];
   }
 }
@@ -1115,7 +1133,7 @@ function renderOfficialDocument(
     children.push(
       renderRecipientLine({
         type: 'recipient_line',
-        text: '抄送：' + doc.meta.ccRecipients.join('、') + '。',
+        text: doc.meta.ccRecipients.join('、') + '。',
         recipientType: 'cc',
       })
     );
@@ -1165,13 +1183,14 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
   let children: (Paragraph | Table)[] = [];
 
   if (doc.type === 'thesis') {
-    children = renderThesisDocument(doc as ThesisDocument, template, contentDir);
+    children = renderThesisDocument(doc, template, contentDir);
   } else if (doc.type === 'journal') {
-    children = renderJournalArticle(doc as JournalArticle, template, contentDir);
+    children = renderJournalArticle(doc, template, contentDir);
   } else if (doc.type === 'official') {
-    children = renderOfficialDocument(doc as OfficialDocument, template, contentDir);
+    children = renderOfficialDocument(doc, template, contentDir);
   } else {
-    throw new Error(`Unsupported document type: "${(doc as any).type}". Expected 'thesis', 'journal', or 'official'.`);
+    const type = (doc as { type?: unknown }).type;
+    throw new Error(`Unsupported document type: "${String(type)}". Expected 'thesis', 'journal', or 'official'.`);
   }
 
   // Headers / Footers
@@ -1211,7 +1230,7 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
   } : undefined;
 
   // ── Build Document ─────────────────────────────────────
-  const sectionProperties: any = {
+  const sectionProperties: ISectionPropertiesOptions = {
     page: {
       size: {
         width: template.page.width,
@@ -1224,15 +1243,15 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
         right: template.page.margins.right,
       },
     },
+    ...(template.page.columns && template.page.columns > 1
+      ? {
+          column: {
+            count: template.page.columns,
+            space: template.page.columnGutter ?? 708,
+          },
+        }
+      : {}),
   };
-
-  // Section level columns
-  if (template.page.columns && template.page.columns > 1) {
-    sectionProperties.columns = {
-      count: template.page.columns,
-      space: template.page.columnGutter ?? 708,
-    };
-  }
 
   const wordDoc = new Document({
     sections: [{
@@ -1249,9 +1268,8 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
   // The docx library has a bug where font.eastAsia in styles.default
   // gets overwritten with the ascii font name. WPS then shows all text
   // in Times New Roman. We fix this by post-processing the zip:
-  // 1. Remove theme1.xml (stops theme font overrides)
-  // 2. Replace all *Theme attributes in styles.xml with explicit fonts
-  // 3. Fix docDefaults eastAsia font
+  // 1. Replace all *Theme attributes in styles.xml with explicit fonts
+  // 2. Fix docDefaults eastAsia font
   buffer = await fixChineseFonts(buffer);
 
   if (options.outputPath) {
@@ -1272,23 +1290,16 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
  * looks wrong). Individual TextRun-level font.eastAsia DOES work, but only for
  * runs that explicitly set it — any run inheriting from defaults is broken.
  *
- * Fix: After packing, unzip the buffer, strip the theme file and all *Theme
- * attributes from styles.xml, and set docDefaults eastAsia to 仿宋 (the
+ * Fix: After packing, unzip the buffer, strip all *Theme attributes from the
+ * generated XML, and set docDefaults eastAsia to 仿宋 (the
  * standard Chinese official document body font). Individual run-level eastAsia
- * values (宋体/黑体/仿宋) are preserved and now take effect.
+ * values (宋体/黑体/仿宋) are preserved and now take effect. The theme part is
+ * retained so its package relationship remains valid.
  */
 async function fixChineseFonts(buffer: Buffer): Promise<Buffer> {
   const zip = await JSZip.loadAsync(buffer);
-  const files = Object.keys(zip.files);
 
-  // 1. Remove theme file(s)
-  for (const fname of files) {
-    if (fname.match(/word\/theme\/theme\d+\.xml$/)) {
-      zip.remove(fname);
-    }
-  }
-
-  // 2. Fix styles.xml
+  // 1. Fix styles.xml
   const stylesFile = zip.file('word/styles.xml');
   if (stylesFile) {
     let stylesXml = await stylesFile.async('string');
@@ -1305,7 +1316,7 @@ async function fixChineseFonts(buffer: Buffer): Promise<Buffer> {
     zip.file('word/styles.xml', stylesXml);
   }
 
-  // 3. Fix document.xml
+  // 2. Fix document.xml
   const docFile = zip.file('word/document.xml');
   if (docFile) {
     let docXml = await docFile.async('string');
@@ -1335,6 +1346,7 @@ export async function renderLegacy(
   legacy: LegacyDocumentJSON,
   template: DocumentTemplate,
   outputPath: string,
+  contentDir: string = dirname(outputPath),
 ): Promise<Buffer> {
   const doc: ThesisDocument = {
     type: 'thesis',
@@ -1349,8 +1361,6 @@ export async function renderLegacy(
       },
     ],
   };
-
-  const contentDir = dirname(outputPath);
 
   return renderDocument({
     outputPath,

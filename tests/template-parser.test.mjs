@@ -36,3 +36,13 @@ test('rejects a ZIP that is not a Word template', async () => {
   const buffer = await zip.generateAsync({ type: 'nodebuffer' });
   await assert.rejects(() => parseTemplate(buffer), /No styles\.xml found/);
 });
+
+test('keeps metadata defaults when optional overrides are undefined', async () => {
+  const template = await parseTemplate(await createTemplate(), {
+    organization: undefined,
+    name: undefined,
+  });
+  assert.equal(template.meta.organization, 'Unknown Organization');
+  assert.equal(template.meta.name, 'Untitled Template');
+  assert.equal(template.meta.parserVersion, '0.2.0');
+});

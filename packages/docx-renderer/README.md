@@ -75,6 +75,9 @@ const buffer = await renderDocument({
 | `equation` / `equation_numbered` | LaTeX equations |
 | `figure` | Image with caption |
 | `table` | Data table with caption |
+| `list_item` | Ordered, unordered, or custom-marker list item |
+| `code_block` | Monospaced multiline code block |
+| `blockquote` | Indented quotation with a left rule |
 | `red_header` | 公文红色发文机关标志 |
 | `document_number` | 发文字号 |
 | `recipient_line` | 主送/抄送机关 |

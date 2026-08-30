@@ -42,9 +42,7 @@
   },
   "packageManager": "pnpm@11.6.0",
   "devDependencies": {
-    "@types/adm-zip": "^0.5.7",
     "@types/node": "^22.0.0",
-    "adm-zip": "^0.5.16",
     "jszip": "^3.10.1"
   }
 }
