@@ -134,3 +134,36 @@ test('writes supported LaTeX as native Office Math elements', async () => {
   assert.match(xml, /<m:sSup>/);
   assert.match(xml, /\(1\)/);
 });
+
+test('writes advanced LaTeX macros and environments as native OMML', async () => {
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Advanced native math' }, cover: [],
+      sections: [{
+        id: 'math', type: 'chapter', title: 'Math',
+        content: [
+          { type: 'equation', latex: '\\hat{x}+\\lim_{t\\to0}\\sin(t)+\\binom{n}{k}' },
+          { type: 'equation', latex: '\\overline{AB}+\\prod_{i=1}^{n}x_i+\\overset{*}{=}+\\left\\langle x,y\\right\\rangle' },
+          { type: 'equation', latex: '\\begin{pmatrix}a & b \\\\ c & d\\end{pmatrix}' },
+          { type: 'equation', latex: 'f(x)=\\begin{cases}x^2 & x\\geq0 \\\\ -x & x<0\\end{cases}' },
+        ],
+      }],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+  assert.match(xml, /<m:acc>/);
+  assert.match(xml, /<m:bar>/);
+  assert.match(xml, /<m:limLow>/);
+  assert.match(xml, /<m:limUpp>/);
+  assert.match(xml, /<m:func>/);
+  assert.match(xml, /<m:nary>/);
+  assert.match(xml, /<m:chr m:val="∏"\/>/);
+  assert.match(xml, /<m:type m:val="noBar"\/>/);
+  assert.match(xml, /<m:m>/);
+  assert.match(xml, /<m:mr>/);
+  assert.match(xml, /<m:begChr m:val="\("\/>/);
+  assert.match(xml, /<m:begChr m:val="\{"\/>/);
+  assert.match(xml, /<m:begChr m:val="⟨"\/>/);
+  assert.match(xml, /<m:endChr m:val=""\/>/);
+});

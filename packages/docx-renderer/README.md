@@ -85,6 +85,8 @@ const buffer = await renderDocument({
 | `attachment_note` | 附件说明 |
 | `spacer` / `page_break` / `horizontal_rule` | Layout |
 
+Equations are emitted as editable native Office Math for the syntax documented in [`@openthesis/equation-engine`](../equation-engine/README.md). Unsupported commands are preserved as readable text where possible.
+
 ## Related
 
 - [OpenThesis](https://github.com/1771902720-lgtm/OpenThesis) — Full document template engine

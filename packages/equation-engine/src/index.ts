@@ -16,10 +16,22 @@ import AdmZip from 'adm-zip';
 
 export type LatexMathNode =
   | { type: 'run'; text: string }
-  | { type: 'fraction'; numerator: LatexMathNode[]; denominator: LatexMathNode[] }
+  | { type: 'fraction'; numerator: LatexMathNode[]; denominator: LatexMathNode[]; bar?: boolean }
   | { type: 'radical'; children: LatexMathNode[]; degree?: LatexMathNode[] }
   | { type: 'script'; base: LatexMathNode[]; subScript?: LatexMathNode[]; superScript?: LatexMathNode[] }
-  | { type: 'sum' | 'integral'; subScript?: LatexMathNode[]; superScript?: LatexMathNode[] };
+  | { type: 'sum' | 'integral'; subScript?: LatexMathNode[]; superScript?: LatexMathNode[] }
+  | { type: 'nary'; operator: string; subScript?: LatexMathNode[]; superScript?: LatexMathNode[] }
+  | { type: 'accent'; accent: string; children: LatexMathNode[] }
+  | { type: 'bar'; position: 'top' | 'bottom'; children: LatexMathNode[] }
+  | { type: 'delimiter'; opening: string; closing: string; children: LatexMathNode[] }
+  | { type: 'function'; name: string; children: LatexMathNode[] }
+  | { type: 'limit'; name: string; subScript?: LatexMathNode[]; superScript?: LatexMathNode[] }
+  | { type: 'overUnder'; base: LatexMathNode[]; over?: LatexMathNode[]; under?: LatexMathNode[] }
+  | { type: 'matrix'; rows: LatexMathNode[][][]; opening: string; closing: string; environment: MatrixEnvironment };
+
+export type MatrixEnvironment =
+  | 'matrix' | 'pmatrix' | 'bmatrix' | 'Bmatrix'
+  | 'vmatrix' | 'Vmatrix' | 'cases' | 'aligned';
 
 /**
  * Parse a practical LaTeX math subset into a renderer-neutral tree.
@@ -154,7 +166,7 @@ class LatexMathParser {
 
       if (subScript || superScript) {
         const only = atom.length === 1 ? atom[0] : undefined;
-        if (only?.type === 'sum' || only?.type === 'integral') {
+        if (only?.type === 'sum' || only?.type === 'integral' || only?.type === 'nary' || only?.type === 'limit') {
           appendMathNode(nodes, { ...only, subScript, superScript });
         } else {
           appendMathNode(nodes, { type: 'script', base: atom, subScript, superScript });
@@ -179,6 +191,13 @@ class LatexMathParser {
       if (this.source[this.index] === '}') this.index += 1;
       return children;
     }
+    if (character === '(' || character === '[') {
+      this.index += 1;
+      const closing = character === '(' ? ')' : ']';
+      const children = this.parse(closing);
+      if (this.source[this.index] === closing) this.index += 1;
+      return [{ type: 'delimiter', opening: character, closing, children }];
+    }
     if (character !== '\\') {
       this.index += 1;
       return [{ type: 'run', text: character }];
@@ -199,14 +218,55 @@ class LatexMathParser {
       return [{ type: 'radical', children: this.parseRequiredGroup(), degree }];
     }
     if (command === 'sum') return [{ type: 'sum' }];
-    if (command === 'int' || command === 'iint' || command === 'iiint') {
-      const integralCount = command === 'int' ? 1 : command === 'iint' ? 2 : 3;
-      return Array.from({ length: integralCount }, () => ({ type: 'integral' as const }));
+    if (command === 'int') return [{ type: 'integral' }];
+    if (command === 'iint' || command === 'iiint') {
+      return [{ type: 'nary', operator: command === 'iint' ? '∬' : '∭' }];
     }
-    if (['text', 'textrm', 'mathrm', 'mathbf', 'mathit', 'operatorname'].includes(command)) {
+    if (command === 'prod' || command === 'coprod' || command === 'bigcap' || command === 'bigcup') {
+      const operators: Record<string, string> = { prod: '∏', coprod: '∐', bigcap: '⋂', bigcup: '⋃' };
+      return [{ type: 'nary', operator: operators[command] }];
+    }
+    if (LIMIT_COMMANDS.has(command)) return [{ type: 'limit', name: command }];
+    if (FUNCTION_COMMANDS.has(command)) {
+      return [{ type: 'function', name: command, children: this.parseFunctionArgument() }];
+    }
+    if (command === 'operatorname') {
+      const name = this.readRequiredGroupText();
+      return [{ type: 'function', name, children: this.parseFunctionArgument() }];
+    }
+    if (command === 'binom') {
+      const fraction: LatexMathNode = {
+        type: 'fraction', numerator: this.parseRequiredGroup(), denominator: this.parseRequiredGroup(), bar: false,
+      };
+      return [{ type: 'delimiter', opening: '(', closing: ')', children: [fraction] }];
+    }
+    if (command === 'overset' || command === 'underset') {
+      const annotation = this.parseRequiredGroup();
+      const base = this.parseRequiredGroup();
+      return [{
+        type: 'overUnder', base,
+        over: command === 'overset' ? annotation : undefined,
+        under: command === 'underset' ? annotation : undefined,
+      }];
+    }
+    if (command in ACCENT_COMMANDS) {
+      return [{ type: 'accent', accent: ACCENT_COMMANDS[command], children: this.parseRequiredGroup() }];
+    }
+    if (command === 'overline' || command === 'underline') {
+      return [{ type: 'bar', position: command === 'overline' ? 'top' : 'bottom', children: this.parseRequiredGroup() }];
+    }
+    if (command === 'left') return [this.parseLeftRight()];
+    if (command === 'right') {
+      this.readDelimiterToken();
+      return [];
+    }
+    if (command === 'begin') {
+      const environment = this.readRequiredGroupText();
+      return [this.parseEnvironment(environment)];
+    }
+    if (['text', 'textrm', 'mathrm', 'mathbf', 'mathit'].includes(command)) {
       return this.parseRequiredGroup();
     }
-    if (command === 'left' || command === 'right') return this.parseAtom();
     if (command === ',' || command === ':' || command === ';' || command === 'quad') {
       return [{ type: 'run', text: command === 'quad' ? '    ' : ' ' }];
     }
@@ -237,6 +297,108 @@ class LatexMathParser {
   private parseScriptValue(): LatexMathNode[] {
     this.skipWhitespace();
     return this.parseRequiredGroup();
+  }
+
+  private parseFunctionArgument(): LatexMathNode[] {
+    this.skipWhitespace();
+    if (this.source[this.index] === '^' || this.source[this.index] === '_' || this.index >= this.source.length) return [];
+    const base = this.parseAtom();
+    let subScript: LatexMathNode[] | undefined;
+    let superScript: LatexMathNode[] | undefined;
+    while (this.source[this.index] === '_' || this.source[this.index] === '^') {
+      const marker = this.source[this.index];
+      this.index += 1;
+      const value = this.parseScriptValue();
+      if (marker === '_') subScript = value;
+      else superScript = value;
+    }
+    return subScript || superScript
+      ? [{ type: 'script', base, subScript, superScript }]
+      : base;
+  }
+
+  private readRequiredGroupText(): string {
+    this.skipWhitespace();
+    if (this.source[this.index] !== '{') return '';
+    this.index += 1;
+    const start = this.index;
+    let depth = 1;
+    while (this.index < this.source.length && depth > 0) {
+      if (this.source[this.index] === '{') depth += 1;
+      else if (this.source[this.index] === '}') depth -= 1;
+      this.index += 1;
+    }
+    return this.source.slice(start, depth === 0 ? this.index - 1 : this.index).trim();
+  }
+
+  private parseLeftRight(): LatexMathNode {
+    const opening = this.readDelimiterToken();
+    const start = this.index;
+    const marker = /\\(left|right)\s*/g;
+    marker.lastIndex = start;
+    let depth = 0;
+    let bodyEnd = this.source.length;
+    let closing = '';
+    let match: RegExpExecArray | null;
+    while ((match = marker.exec(this.source))) {
+      if (match[1] === 'left') {
+        depth += 1;
+        continue;
+      }
+      if (depth > 0) {
+        depth -= 1;
+        continue;
+      }
+      bodyEnd = match.index;
+      this.index = marker.lastIndex;
+      closing = this.readDelimiterToken();
+      break;
+    }
+    if (bodyEnd === this.source.length) this.index = this.source.length;
+    const children = new LatexMathParser(this.source.slice(start, bodyEnd)).parse();
+    return { type: 'delimiter', opening, closing, children };
+  }
+
+  private readDelimiterToken(): string {
+    this.skipWhitespace();
+    if (this.source[this.index] !== '\\') {
+      const token = this.source[this.index] ?? '';
+      this.index += token ? 1 : 0;
+      return token === '.' ? '' : token;
+    }
+    this.index += 1;
+    const token = this.readCommand();
+    return DELIMITER_COMMANDS[token] ?? (token === '.' ? '' : token);
+  }
+
+  private parseEnvironment(name: string): LatexMathNode {
+    const body = this.readEnvironmentBody(name);
+    if (!MATRIX_ENVIRONMENTS.has(name as MatrixEnvironment)) {
+      return { type: 'delimiter', opening: '', closing: '', children: new LatexMathParser(body).parse() };
+    }
+    const environment = name as MatrixEnvironment;
+    const delimiters = MATRIX_DELIMITERS[environment];
+    const rows = splitEnvironmentRows(body).map(row => row.map(cell => new LatexMathParser(cell).parse()));
+    return { type: 'matrix', rows, opening: delimiters[0], closing: delimiters[1], environment };
+  }
+
+  private readEnvironmentBody(name: string): string {
+    const start = this.index;
+    const marker = /\\(begin|end)\s*\{([^{}]+)\}/g;
+    marker.lastIndex = start;
+    let depth = 1;
+    let match: RegExpExecArray | null;
+    while ((match = marker.exec(this.source))) {
+      if (match[1] === 'begin') depth += 1;
+      else depth -= 1;
+      if (depth === 0 && match[2].trim() === name) {
+        const body = this.source.slice(start, match.index);
+        this.index = marker.lastIndex;
+        return body;
+      }
+    }
+    this.index = this.source.length;
+    return this.source.slice(start);
   }
 
   private readCommand(): string {
@@ -272,6 +434,76 @@ const MATH_SYMBOLS: Record<string, string> = {
   to: '→', rightarrow: '→', leftarrow: '←', Rightarrow: '⇒', Leftarrow: '⇐',
   ldots: '…', cdots: '⋯', ell: 'ℓ', hbar: 'ℏ', Re: 'ℜ', Im: 'ℑ',
 };
+
+const FUNCTION_COMMANDS = new Set([
+  'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
+  'sinh', 'cosh', 'tanh', 'log', 'ln', 'exp',
+  'det', 'gcd', 'ker', 'arg', 'deg', 'dim', 'hom',
+]);
+
+const LIMIT_COMMANDS = new Set(['lim', 'min', 'max', 'inf', 'sup']);
+
+const ACCENT_COMMANDS: Record<string, string> = {
+  hat: '̂', widehat: '̂', bar: '̄', vec: '⃗',
+  dot: '̇', ddot: '̈', tilde: '̃', widetilde: '̃',
+};
+
+const DELIMITER_COMMANDS: Record<string, string> = {
+  lbrace: '{', rbrace: '}', langle: '⟨', rangle: '⟩',
+  vert: '|', Vert: '‖', mid: '|', '{': '{', '}': '}', '|': '|',
+};
+
+const MATRIX_ENVIRONMENTS = new Set<MatrixEnvironment>([
+  'matrix', 'pmatrix', 'bmatrix', 'Bmatrix', 'vmatrix', 'Vmatrix', 'cases', 'aligned',
+]);
+
+const MATRIX_DELIMITERS: Record<MatrixEnvironment, readonly [string, string]> = {
+  matrix: ['', ''], pmatrix: ['(', ')'], bmatrix: ['[', ']'], Bmatrix: ['{', '}'],
+  vmatrix: ['|', '|'], Vmatrix: ['‖', '‖'], cases: ['{', ''], aligned: ['', ''],
+};
+
+function splitEnvironmentRows(source: string): string[][] {
+  const rows: string[][] = [];
+  let cells: string[] = [];
+  let current = '';
+  let braceDepth = 0;
+  let environmentDepth = 0;
+
+  const pushCell = () => {
+    cells.push(current.trim());
+    current = '';
+  };
+  const pushRow = () => {
+    pushCell();
+    if (cells.some(cell => cell.length > 0)) rows.push(cells);
+    cells = [];
+  };
+
+  for (let index = 0; index < source.length; index += 1) {
+    if (source.startsWith('\\begin{', index)) environmentDepth += 1;
+    if (source.startsWith('\\end{', index) && environmentDepth > 0) environmentDepth -= 1;
+    const character = source[index];
+    if (character === '{') braceDepth += 1;
+    else if (character === '}' && braceDepth > 0) braceDepth -= 1;
+
+    if (braceDepth === 0 && environmentDepth === 0 && character === '&' && source[index - 1] !== '\\') {
+      pushCell();
+      continue;
+    }
+    if (braceDepth === 0 && environmentDepth === 0 && character === '\\' && source[index + 1] === '\\') {
+      pushRow();
+      index += 1;
+      if (source[index + 1] === '[') {
+        const spacingEnd = source.indexOf(']', index + 2);
+        if (spacingEnd >= 0) index = spacingEnd;
+      }
+      continue;
+    }
+    current += character;
+  }
+  pushRow();
+  return rows.length > 0 ? rows : [[source.trim()]];
+}
 
 // ── OMML generation via pandoc ────────────────────────────
 

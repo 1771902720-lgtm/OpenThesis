@@ -161,8 +161,9 @@ node .codex/skills/openthesis/scripts/openthesis.mjs build manuscript.md \
 - ✅ **Direct Markdown builds** — `.md` → `.docx` without an intermediate file
 - ✅ **Agent-ready Skill** — Standard `SKILL.md`, executable wrapper, UI metadata, and progressive references
 - ✅ **Native Office Math core** — Fractions, roots, scripts, sums, integrals, symbols, and Greek letters emit OMML
+- ✅ **Advanced native math slice** — Functions, limits, accents, scalable delimiters, binomials, matrices, cases, and aligned equations
 - ✅ **Legacy format support** — Backward compatible with existing `{cover_blocks, body_blocks}` JSON
-- 🚧 Advanced LaTeX macros and environments in native OMML (V3)
+- 🚧 **Remaining V3 coverage** — User-defined macros, array column specifications, equation arrays, and less common AMS environments
 
 ## Tech Stack
 
@@ -198,7 +199,7 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | ----- | ----------------------------------------------- | ---------- |
 | V1    | Core engine: parse + render + CLI               | ✅ Done     |
 | V2    | Images + double-column output; Markdown parser  | ✅ Done     |
-| V3    | Native LaTeX → OMML insertion                   | 🚧 In progress (core subset) |
+| V3    | Native LaTeX → OMML insertion                   | 🚧 In progress (core + advanced common subset) |
 | V4    | ML-based template layout understanding          | 📋 Future  |
 | V5    | AI Agent: auto-generate thesis content          | 📋 Future  |
 | SaaS  | Template marketplace (community-contributed)    | 📋 Future  |
