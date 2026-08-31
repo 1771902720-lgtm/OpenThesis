@@ -76,6 +76,25 @@ graph TD
     class F outputStyle;
 ```
 
+## PDF templates and current scope
+
+Many universities, journals, and government agencies publish their formatting guides or sample documents only as PDF. OpenThesis can use those PDFs as **visual specifications**, but the current parser does **not** parse PDF files directly.
+
+| Input | Current support | Notes |
+| --- | --- | --- |
+| `.docx` template | ✅ Native | Extracts named styles, inheritance, page geometry, headers, footers, and columns |
+| Text PDF | ⚠️ Reference only | PDF stores positioned page content rather than reusable Word style definitions |
+| Scanned PDF | ⚠️ Reference only | OCR and layout reconstruction are not built into OpenThesis |
+| Markdown / OpenThesis JSON | ✅ Native | Used as document content and rendered to editable DOCX |
+
+If the official source is PDF-only:
+
+1. Prefer an official editable `.docx` template when one is available.
+2. Otherwise convert or OCR the PDF to DOCX with an external tool, then clean its Word styles and page settings.
+3. Run `thesis parse converted-template.docx`, build the document, and compare the result against the original PDF.
+
+PDF conversion can fragment paragraphs, substitute fonts, and flatten headers or tables, so a converted file should not be treated as an automatically faithful template. Native PDF layout understanding and semantic reconstruction are planned for V4.
+
 ## Quick Start
 
 ```bash
@@ -205,7 +224,7 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | V1    | Core engine: parse + render + CLI               | ✅ Done     |
 | V2    | Images + double-column output; Markdown parser  | ✅ Done     |
 | V3    | Native LaTeX → OMML insertion                   | 🚧 In progress (core + advanced common subset) |
-| V4    | ML-based template layout understanding          | 📋 Future  |
+| V4    | ML-assisted PDF layout understanding + semantic reconstruction | 📋 Future  |
 | V5    | AI Agent: auto-generate thesis content          | 📋 Future  |
 | SaaS  | Template marketplace (community-contributed)    | 📋 Future  |
 
