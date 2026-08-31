@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
-import { parseTemplate } from '../packages/template-parser/dist/index.js';
+import { parsePdfTemplate, parseTemplate } from '../packages/template-parser/dist/index.js';
+import { buildTestPdf } from './helpers/pdf.mjs';
 
 async function createTemplate() {
   const zip = new JSZip();
@@ -45,4 +46,21 @@ test('keeps metadata defaults when optional overrides are undefined', async () =
   assert.equal(template.meta.organization, 'Unknown Organization');
   assert.equal(template.meta.name, 'Untitled Template');
   assert.equal(template.meta.parserVersion, '0.2.0');
+});
+
+test('infers a reusable template from a text-based PDF', async () => {
+  const template = await parsePdfTemplate(buildTestPdf(), {
+    organization: 'PDF University', documentType: 'thesis', sourceFile: 'guide.pdf',
+  });
+  assert.equal(template.meta.sourceFormat, 'pdf');
+  assert.equal(template.meta.pageCount, 1);
+  assert.equal(template.page.width, 12240);
+  assert.equal(template.page.height, 15840);
+  assert.ok(Object.values(template.styleRoles).includes('paragraph'));
+  assert.ok(Object.values(template.styleRoles).includes('centered_text'));
+  assert.ok(template.meta.warnings.some(warning => /inferred/.test(warning)));
+});
+
+test('asks for OCR when a PDF has no extractable text', async () => {
+  await assert.rejects(() => parsePdfTemplate(buildTestPdf({ text: false })), /run OCR first/);
 });

@@ -50,14 +50,17 @@ node .codex/skills/openthesis/scripts/openthesis.mjs import manuscript.md \
 
 Keep the JSON beside the Markdown when it contains relative image paths. If it must move, update figure paths relative to the JSON file.
 
-## Parse a Word template
+## Parse a DOCX or PDF template
 
 ```bash
 node .codex/skills/openthesis/scripts/openthesis.mjs parse university.docx \
   --type thesis --org "University Name"
+
+node .codex/skills/openthesis/scripts/openthesis.mjs parse format-guide.pdf \
+  --type journal --org "Journal Name"
 ```
 
-This writes `university.template.json` beside the source template.
+This writes a `.template.json` file beside the source. DOCX preserves named Word styles; text-based PDF parsing infers reusable styles from visible text geometry. Review PDF parser warnings. A scanned PDF must be OCRed first.
 
 ## Build structured JSON
 
@@ -91,5 +94,5 @@ Common failures:
 
 - `OpenThesis CLI is not built`: run `pnpm install --frozen-lockfile && pnpm build` in the repository root.
 - Missing figure: make the path relative to the Markdown/JSON source file, or use an absolute path.
-- Wrong formatting: verify `-t` points to a template JSON parsed from the intended DOCX file.
+- Wrong formatting: verify `-t` points to the intended template JSON. For a PDF-derived template, review inferred fonts, margins, columns, and semantic roles before building.
 - Advanced formula renders literally: native OMML covers fractions, roots, scripts, n-ary operators, functions, limits, accents, scalable delimiters, binomials, and common matrix/cases/aligned environments. Simplify user-defined macros, array column specifications, and uncommon AMS environments before building.
