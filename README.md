@@ -9,6 +9,11 @@
 </p>
 
 <p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/Language-English-2563eb" alt="English"></a>
+  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/语言-简体中文-dc2626" alt="简体中文"></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/1771902720-lgtm/OpenThesis/actions/workflows/ci.yml"><img src="https://github.com/1771902720-lgtm/OpenThesis/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <img src="https://img.shields.io/badge/status-V2_complete-brightgreen" alt="Status">
@@ -161,8 +166,9 @@ node .codex/skills/openthesis/scripts/openthesis.mjs build manuscript.md \
 - ✅ **Direct Markdown builds** — `.md` → `.docx` without an intermediate file
 - ✅ **Agent-ready Skill** — Standard `SKILL.md`, executable wrapper, UI metadata, and progressive references
 - ✅ **Native Office Math core** — Fractions, roots, scripts, sums, integrals, symbols, and Greek letters emit OMML
+- ✅ **Advanced native math slice** — Functions, limits, accents, scalable delimiters, binomials, matrices, cases, and aligned equations
 - ✅ **Legacy format support** — Backward compatible with existing `{cover_blocks, body_blocks}` JSON
-- 🚧 Advanced LaTeX macros and environments in native OMML (V3)
+- 🚧 **Remaining V3 coverage** — User-defined macros, array column specifications, equation arrays, and less common AMS environments
 
 ## Tech Stack
 
@@ -198,8 +204,16 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | ----- | ----------------------------------------------- | ---------- |
 | V1    | Core engine: parse + render + CLI               | ✅ Done     |
 | V2    | Images + double-column output; Markdown parser  | ✅ Done     |
-| V3    | Native LaTeX → OMML insertion                   | 🚧 In progress (core subset) |
+| V3    | Native LaTeX → OMML insertion                   | 🚧 In progress (core + advanced common subset) |
 | V4    | ML-based template layout understanding          | 📋 Future  |
+
+## Star History
+
+<p align="center">
+  <a href="https://www.star-history.com/#1771902720-lgtm/OpenThesis&Date">
+    <img src="https://api.star-history.com/svg?repos=1771902720-lgtm/OpenThesis&type=Date" alt="OpenThesis Star History Chart" width="700">
+  </a>
+</p>
 
 ## Contributing
 

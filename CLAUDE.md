@@ -72,13 +72,13 @@ thesis build <manuscript.md> --type thesis -t <template.json> -o output.docx
 | Area | Limitation | Plan |
 |------|-----------|------|
 | Style role detection | Regex-based, fails on auto-numbered styles | V4: ML/layout-based |
-| Equation rendering | Native OMML covers the core LaTeX subset | V3: expand macros and environments |
+| Equation rendering | Native OMML covers core math plus common functions, limits, accents, delimiters and matrix environments | V3: custom macros, array specs and uncommon AMS environments |
 | Template parsing | Works best with real Word templates | Current: works for most templates |
 | Markdown inline styling | Paragraph schema stores plain text | Future: rich inline ranges |
 | Markdown dialect | Predictable manuscript subset | Expand only with compatibility tests |
 
 ## Next Steps
-1. Expand native OMML coverage for advanced LaTeX macros and environments
+1. Add explicit unsupported-syntax diagnostics and custom macro expansion to the equation engine
 2. Get real university and journal templates to expand parser compatibility fixtures
 3. Add ML-assisted layout-role understanding behind deterministic fallbacks
 4. Add agent content-generation workflows on top of the typed schema

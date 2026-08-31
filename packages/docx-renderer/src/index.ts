@@ -14,6 +14,7 @@ import {
   ImageRun,
   Math as DocxMath, MathRun, MathFraction, MathRadical, MathSuperScript,
   MathSubScript, MathSubSuperScript, MathSum, MathIntegral,
+  MathFunction, MathLimitLower, MathLimitUpper, BuilderElement,
 } from 'docx';
 import type { ISectionPropertiesOptions, MathComponent } from 'docx';
 import type {
@@ -278,10 +279,12 @@ function mathComponents(nodes: LatexMathNode[]): MathComponent[] {
       case 'run':
         return new MathRun(node.text);
       case 'fraction':
-        return new MathFraction({
-          numerator: mathComponents(node.numerator),
-          denominator: mathComponents(node.denominator),
-        });
+        return node.bar === false
+          ? mathNoBarFraction(node.numerator, node.denominator)
+          : new MathFraction({
+              numerator: mathComponents(node.numerator),
+              denominator: mathComponents(node.denominator),
+            });
       case 'radical':
         return new MathRadical({
           children: mathComponents(node.children),
@@ -313,8 +316,154 @@ function mathComponents(nodes: LatexMathNode[]): MathComponent[] {
           subScript: node.subScript ? mathComponents(node.subScript) : undefined,
           superScript: node.superScript ? mathComponents(node.superScript) : undefined,
         });
+      case 'nary':
+        return mathNary(node.operator, node.subScript, node.superScript);
+      case 'accent':
+        return mathAccent(node.accent, node.children);
+      case 'bar':
+        return mathBar(node.position, node.children);
+      case 'delimiter':
+        return mathDelimiter(node.opening, node.closing, mathComponents(node.children));
+      case 'function':
+        return new MathFunction({
+          name: [new MathRun(node.name)],
+          children: mathComponents(node.children),
+        });
+      case 'limit': {
+        let component: MathComponent = new MathRun(node.name);
+        if (node.subScript) {
+          component = asMathComponent(new MathLimitLower({
+            children: [component], limit: mathComponents(node.subScript),
+          }));
+        }
+        if (node.superScript) {
+          component = asMathComponent(new MathLimitUpper({
+            children: [component], limit: mathComponents(node.superScript),
+          }));
+        }
+        return component;
+      }
+      case 'overUnder': {
+        let components = mathComponents(node.base);
+        if (node.under) {
+          components = [asMathComponent(new MathLimitLower({
+            children: components, limit: mathComponents(node.under),
+          }))];
+        }
+        if (node.over) {
+          components = [asMathComponent(new MathLimitUpper({
+            children: components, limit: mathComponents(node.over),
+          }))];
+        }
+        return components[0] ?? new MathRun('');
+      }
+      case 'matrix': {
+        const matrix = mathMatrix(node.rows);
+        return node.opening || node.closing
+          ? mathDelimiter(node.opening, node.closing, [matrix])
+          : matrix;
+      }
     }
   });
+}
+
+function asMathComponent(element: BuilderElement | MathLimitLower | MathLimitUpper): MathComponent {
+  return element as unknown as MathComponent;
+}
+
+function mathProperty(name: string, value: string): BuilderElement {
+  return new BuilderElement({
+    name,
+    attributes: { value: { key: 'm:val', value } },
+  });
+}
+
+function mathArgument(name: string, children: readonly MathComponent[]): BuilderElement {
+  return new BuilderElement({ name, children });
+}
+
+function mathAccent(accent: string, children: LatexMathNode[]): MathComponent {
+  const properties = new BuilderElement({
+    name: 'm:accPr',
+    children: [mathProperty('m:chr', accent)],
+  });
+  return asMathComponent(new BuilderElement({
+    name: 'm:acc',
+    children: [properties, mathArgument('m:e', mathComponents(children))],
+  }));
+}
+
+function mathBar(position: 'top' | 'bottom', children: LatexMathNode[]): MathComponent {
+  const properties = new BuilderElement({
+    name: 'm:barPr',
+    children: [mathProperty('m:pos', position)],
+  });
+  return asMathComponent(new BuilderElement({
+    name: 'm:bar',
+    children: [properties, mathArgument('m:e', mathComponents(children))],
+  }));
+}
+
+function mathDelimiter(opening: string, closing: string, children: MathComponent[]): MathComponent {
+  const properties = new BuilderElement({
+    name: 'm:dPr',
+    children: [mathProperty('m:begChr', opening), mathProperty('m:endChr', closing)],
+  });
+  return asMathComponent(new BuilderElement({
+    name: 'm:d',
+    children: [properties, mathArgument('m:e', children)],
+  }));
+}
+
+function mathMatrix(rows: LatexMathNode[][][]): MathComponent {
+  const width = Math.max(1, ...rows.map(row => row.length));
+  const matrixRows = rows.map(row => {
+    const cells = Array.from({ length: width }, (_, index) => row[index] ?? []);
+    return new BuilderElement({
+      name: 'm:mr',
+      children: cells.map(cell => mathArgument('m:e', mathComponents(cell))),
+    });
+  });
+  return asMathComponent(new BuilderElement({
+    name: 'm:m',
+    children: matrixRows,
+  }));
+}
+
+function mathNoBarFraction(numerator: LatexMathNode[], denominator: LatexMathNode[]): MathComponent {
+  const properties = new BuilderElement({
+    name: 'm:fPr',
+    children: [mathProperty('m:type', 'noBar')],
+  });
+  return asMathComponent(new BuilderElement({
+    name: 'm:f',
+    children: [
+      properties,
+      mathArgument('m:num', mathComponents(numerator)),
+      mathArgument('m:den', mathComponents(denominator)),
+    ],
+  }));
+}
+
+function mathNary(operator: string, subScript?: LatexMathNode[], superScript?: LatexMathNode[]): MathComponent {
+  const properties = new BuilderElement({
+    name: 'm:naryPr',
+    children: [
+      mathProperty('m:chr', operator),
+      mathProperty('m:limLoc', 'undOvr'),
+      mathProperty('m:subHide', subScript ? '0' : '1'),
+      mathProperty('m:supHide', superScript ? '0' : '1'),
+    ],
+  });
+  return asMathComponent(new BuilderElement({
+    name: 'm:nary',
+    children: [
+      properties,
+      mathArgument('m:sub', subScript ? mathComponents(subScript) : []),
+      mathArgument('m:sup', superScript ? mathComponents(superScript) : []),
+      mathArgument('m:e', []),
+    ],
+  }));
 }
 
 function renderTable(

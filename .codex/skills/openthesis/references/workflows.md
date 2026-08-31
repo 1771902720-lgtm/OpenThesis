@@ -92,4 +92,4 @@ Common failures:
 - `OpenThesis CLI is not built`: run `pnpm install --frozen-lockfile && pnpm build` in the repository root.
 - Missing figure: make the path relative to the Markdown/JSON source file, or use an absolute path.
 - Wrong formatting: verify `-t` points to a template JSON parsed from the intended DOCX file.
-- Advanced formula renders literally: native OMML currently covers fractions, roots, scripts, sums, integrals, common symbols, and Greek letters; simplify or pre-convert unsupported macros.
+- Advanced formula renders literally: native OMML covers fractions, roots, scripts, n-ary operators, functions, limits, accents, scalable delimiters, binomials, and common matrix/cases/aligned environments. Simplify user-defined macros, array column specifications, and uncommon AMS environments before building.
