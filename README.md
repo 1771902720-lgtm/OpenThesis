@@ -218,6 +218,15 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 
 ## Contributing
 
+Contributions are welcome! Please open an issue to report bugs or propose new features. For code changes, submit a focused pull request with a clear description and relevant tests.
+
+Before submitting a pull request, run:
+
+```bash
+pnpm check
+pnpm audit --prod
+```
+
 ## Development checks
 
 ```bash
