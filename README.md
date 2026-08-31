@@ -208,17 +208,6 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | V4    | ML-based template layout understanding          | 📋 Future  |
 
 ## Star History
-
-<p align="center">
-  <a href="https://www.star-history.com/#1771902720-lgtm/OpenThesis&Date">
-    <img src="https://api.star-history.com/svg?repos=1771902720-lgtm/OpenThesis&type=Date" alt="OpenThesis Star History Chart" width="700">
-  </a>
-</p>
-
-## Contributing
-
-## Star History
-
 <a href="https://www.star-history.com/?repos=1771902720-lgtm%2FOpenThesis&type=date&legend=bottom-right">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis&type=date&theme=dark&legend=bottom-right&sealed_token=PwMze0D7sFAfE8TguRGGP3tRWivBmTQnqgRFQ9QmFC7mTGMBdBczwxB2jNFcLhT51dfA41hb_z4hNo-AlTwxnz4mbKLQMHpIvSfFzVkoS0gCIokFdQ8LTnXUBT3yo24t5o5dUms" />
@@ -226,6 +215,8 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
     <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis&type=date&legend=bottom-right&sealed_token=PwMze0D7sFAfE8TguRGGP3tRWivBmTQnqgRFQ9QmFC7mTGMBdBczwxB2jNFcLhT51dfA41hb_z4hNo-AlTwxnz4mbKLQMHpIvSfFzVkoS0gCIokFdQ8LTnXUBT3yo24t5o5dUms" />
   </picture>
 </a>
+
+## Contributing
 
 ## Development checks
 
