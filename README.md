@@ -200,8 +200,6 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | V2    | Images + double-column output; Markdown parser  | ✅ Done     |
 | V3    | Native LaTeX → OMML insertion                   | 🚧 In progress (core subset) |
 | V4    | ML-based template layout understanding          | 📋 Future  |
-| V5    | AI Agent: auto-generate thesis content          | 📋 Future  |
-| SaaS  | Template marketplace (community-contributed)    | 📋 Future  |
 
 ## Contributing
 
