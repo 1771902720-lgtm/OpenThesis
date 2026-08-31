@@ -208,11 +208,11 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | V4    | ML-based template layout understanding          | 📋 Future  |
 
 ## Star History
-<a href="https://www.star-history.com/?repos=1771902720-lgtm%2FOpenThesis%2CGluxggg%2FOpenThesis&type=date&legend=bottom-right">
+<a href="https://www.star-history.com/?repos=Gluxggg%2FOpenThesis&type=date&legend=bottom-right">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis%2CGluxggg/OpenThesis&type=date&theme=dark&legend=bottom-right&sealed_token=iayL5iJvTiNZsiiAlbGmgLlm0QpbtlxK-ZHn_gyOdRpDWW55RBwl1DRb8pjxLhNeY2FwcHAL_EQDcO9QYgUwwN-hi_QFObZKOGR9nUrIOe-b31I2qnjpIOyARgQ62NmPq0yWwUA" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis%2CGluxggg/OpenThesis&type=date&legend=bottom-right&sealed_token=iayL5iJvTiNZsiiAlbGmgLlm0QpbtlxK-ZHn_gyOdRpDWW55RBwl1DRb8pjxLhNeY2FwcHAL_EQDcO9QYgUwwN-hi_QFObZKOGR9nUrIOe-b31I2qnjpIOyARgQ62NmPq0yWwUA" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis%2CGluxggg/OpenThesis&type=date&legend=bottom-right&sealed_token=iayL5iJvTiNZsiiAlbGmgLlm0QpbtlxK-ZHn_gyOdRpDWW55RBwl1DRb8pjxLhNeY2FwcHAL_EQDcO9QYgUwwN-hi_QFObZKOGR9nUrIOe-b31I2qnjpIOyARgQ62NmPq0yWwUA" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Gluxggg/OpenThesis&type=date&theme=dark&legend=bottom-right&sealed_token=Ox0FRvFHuhL8XFkGZbRaltIW5xOjjr_FINCudPFW-xjxqtcdJ_C4uhwl7uJoBnKHDbgp2CjIUf5jm4NNLaWDtkbfOaGxInn4g7cNbI3HFUn4PikQgcg6gNugDaR_ZXiO3V_WSljteiv1MAkRynoTldkIJGZ_kPEZhw3CNRjnc9F0rF3HBlOM3p-dviJ_" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Gluxggg/OpenThesis&type=date&legend=bottom-right&sealed_token=Ox0FRvFHuhL8XFkGZbRaltIW5xOjjr_FINCudPFW-xjxqtcdJ_C4uhwl7uJoBnKHDbgp2CjIUf5jm4NNLaWDtkbfOaGxInn4g7cNbI3HFUn4PikQgcg6gNugDaR_ZXiO3V_WSljteiv1MAkRynoTldkIJGZ_kPEZhw3CNRjnc9F0rF3HBlOM3p-dviJ_" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Gluxggg/OpenThesis&type=date&legend=bottom-right&sealed_token=Ox0FRvFHuhL8XFkGZbRaltIW5xOjjr_FINCudPFW-xjxqtcdJ_C4uhwl7uJoBnKHDbgp2CjIUf5jm4NNLaWDtkbfOaGxInn4g7cNbI3HFUn4PikQgcg6gNugDaR_ZXiO3V_WSljteiv1MAkRynoTldkIJGZ_kPEZhw3CNRjnc9F0rF3HBlOM3p-dviJ_" />
  </picture>
 </a>
 
