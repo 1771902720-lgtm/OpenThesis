@@ -209,11 +209,11 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 
 ## Star History
 <a href="https://www.star-history.com/?repos=1771902720-lgtm%2FOpenThesis&type=date&legend=bottom-right">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis&type=date&theme=dark&legend=bottom-right&sealed_token=PwMze0D7sFAfE8TguRGGP3tRWivBmTQnqgRFQ9QmFC7mTGMBdBczwxB2jNFcLhT51dfA41hb_z4hNo-AlTwxnz4mbKLQMHpIvSfFzVkoS0gCIokFdQ8LTnXUBT3yo24t5o5dUms" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis&type=date&legend=bottom-right&sealed_token=PwMze0D7sFAfE8TguRGGP3tRWivBmTQnqgRFQ9QmFC7mTGMBdBczwxB2jNFcLhT51dfA41hb_z4hNo-AlTwxnz4mbKLQMHpIvSfFzVkoS0gCIokFdQ8LTnXUBT3yo24t5o5dUms" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis&type=date&legend=bottom-right&sealed_token=PwMze0D7sFAfE8TguRGGP3tRWivBmTQnqgRFQ9QmFC7mTGMBdBczwxB2jNFcLhT51dfA41hb_z4hNo-AlTwxnz4mbKLQMHpIvSfFzVkoS0gCIokFdQ8LTnXUBT3yo24t5o5dUms" />
-  </picture>
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis&type=date&theme=dark&legend=bottom-right&sealed_token=PwMze0D7sFAfE8TguRGGP3tRWivBmTQnqgRFQ9QmFC7mTGMBdBczwxB2jNFcLhT51dfA41hb_z4hNo-AlTwxnz4mbKLQMHpIvSfFzVkoS0gCIokFdQ8LTnXUBT3yo24t5o5dUms" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis&type=date&legend=bottom-right&sealed_token=PwMze0D7sFAfE8TguRGGP3tRWivBmTQnqgRFQ9QmFC7mTGMBdBczwxB2jNFcLhT51dfA41hb_z4hNo-AlTwxnz4mbKLQMHpIvSfFzVkoS0gCIokFdQ8LTnXUBT3yo24t5o5dUms" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=1771902720-lgtm/OpenThesis&type=date&legend=bottom-right&sealed_token=PwMze0D7sFAfE8TguRGGP3tRWivBmTQnqgRFQ9QmFC7mTGMBdBczwxB2jNFcLhT51dfA41hb_z4hNo-AlTwxnz4mbKLQMHpIvSfFzVkoS0gCIokFdQ8LTnXUBT3yo24t5o5dUms" />
+ </picture>
 </a>
 
 ## Contributing
