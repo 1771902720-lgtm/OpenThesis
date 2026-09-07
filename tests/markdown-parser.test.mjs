@@ -101,3 +101,34 @@ test('rejects unsupported front-matter document types', () => {
     /Unsupported Markdown document type/,
   );
 });
+
+
+test('preserves quoted front-matter scalars as strings', () => {
+  const document = parseMarkdown(`---
+title: "00123"
+studentId: '00042'
+author: "false"
+---
+# Demo`);
+  assert.equal(document.meta.title, '00123');
+  assert.equal(document.meta.studentId, '00042');
+  assert.equal(document.meta.author, 'false');
+});
+
+test('requires a closing code fence at least as long as its opener', () => {
+  for (const marker of ['`', '~']) {
+    const blocks = parseMarkdownBlocks([
+      marker.repeat(4) + 'markdown',
+      marker.repeat(3),
+      '# literal heading',
+      marker.repeat(3),
+      marker.repeat(5),
+      '',
+      'After the fence.',
+    ].join('\n'));
+    assert.deepEqual(blocks, [
+      { type: 'code_block', text: [marker.repeat(3), '# literal heading', marker.repeat(3)].join('\n'), language: 'markdown' },
+      { type: 'paragraph', text: 'After the fence.' },
+    ]);
+  }
+});

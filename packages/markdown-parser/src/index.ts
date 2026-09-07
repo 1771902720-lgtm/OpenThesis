@@ -123,7 +123,9 @@ function extractFrontMatter(markdown: string): { body: string; frontMatter: Mark
 }
 
 function parseFrontMatterValue(value: string): FrontMatterValue {
-  const unquoted = stripQuotes(value.trim());
+  const trimmed = value.trim();
+  const unquoted = stripQuotes(trimmed);
+  if (unquoted !== trimmed) return unquoted;
   if (/^\[.*\]$/.test(unquoted)) {
     const inner = unquoted.slice(1, -1).trim();
     return inner ? splitList(inner) : [];
@@ -158,7 +160,7 @@ function tokenize(markdown: string): MarkdownItem[] {
       const code: string[] = [];
       const fenceMarker = fence[1][0];
       index += 1;
-      while (index < lines.length && !new RegExp(`^\\s*${escapeRegExp(fenceMarker)}{3,}\\s*$`).test(lines[index])) {
+      while (index < lines.length && !new RegExp(`^\\s*${escapeRegExp(fenceMarker)}{${fence[1].length},}\\s*$`).test(lines[index])) {
         code.push(lines[index]);
         index += 1;
       }
