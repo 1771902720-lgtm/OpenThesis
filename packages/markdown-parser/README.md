@@ -15,3 +15,9 @@ const document = parseMarkdown(markdown, {
 ```
 
 See the root README for front-matter fields and CLI usage.
+
+
+Quoted front-matter values remain strings: use `studentId: "00042"` to preserve
+leading zeros. Unquoted numbers and booleans retain their existing scalar parsing.
+A fenced code block closes only with the same marker and at least as many markers
+as its opening fence, so four-marker fences can contain three-marker examples.
