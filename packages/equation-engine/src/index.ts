@@ -41,18 +41,65 @@ export function latexToMathAst(latex: string): LatexMathNode[] {
   return new LatexMathParser(latex).parse();
 }
 
+export interface OmmlConversion {
+  /** OMML XML when pandoc produced it, otherwise Unicode plain text. */
+  value: string;
+  /** Which path produced `value`. */
+  source: 'pandoc' | 'unicode';
+  /** True when the Unicode fallback could not fully represent the input. */
+  lossy: boolean;
+  /** Why the pandoc path was unavailable, when it was. */
+  reason?: string;
+}
+
+/**
+ * Convert LaTeX to OMML, reporting which path was taken.
+ *
+ * Prefer this over `latexToOMML` when the caller needs to know whether the
+ * result is native Office Math or a lossy approximation — the fallback used to
+ * be entirely silent.
+ */
+export function convertLatexToOmml(latex: string): OmmlConversion {
+  const pandoc = generateOMMLviaPandoc(latex);
+  if (pandoc.omml) {
+    return { value: pandoc.omml, source: 'pandoc', lossy: false };
+  }
+
+  const plain = latexToPlainText(latex);
+  return {
+    value: plain,
+    source: 'unicode',
+    lossy: isLossyConversion(latex, plain),
+    reason: pandoc.error,
+  };
+}
+
 /**
  * Render a LaTeX equation string to OMML XML (native Word equation).
- * Uses pandoc for LaTeX → OMML conversion when available.
- * Falls back to Unicode plain-text when pandoc is not installed.
+ * Uses pandoc when available and falls back to Unicode plain text.
+ *
+ * The fallback cannot express everything; it warns when it is taken. Use
+ * `convertLatexToOmml` if the caller needs to inspect that programmatically.
  */
 export function latexToOMML(latex: string): string {
-  // V2: Try pandoc OMML generation first
-  const omml = generateOMMLviaPandoc(latex);
-  if (omml) return omml;
+  const conversion = convertLatexToOmml(latex);
+  if (conversion.source === 'unicode') {
+    console.warn(
+      `No native Office Math for "${latex}"`
+      + `${conversion.reason ? ` (${conversion.reason})` : ''}; `
+      + `falling back to ${conversion.lossy ? 'lossy ' : ''}Unicode text.`,
+    );
+  }
+  return conversion.value;
+}
 
-  // Fallback: Unicode plain-text conversion
-  return latexToPlainText(latex);
+/**
+ * The Unicode path cannot express environments, scalable delimiters, or any
+ * command it does not recognise — a surviving backslash is the tell.
+ */
+function isLossyConversion(latex: string, plain: string): boolean {
+  if (/\\[A-Za-z]+/.test(plain)) return true;
+  return /\\(?:begin|end|left|right)\b/.test(latex);
 }
 
 /**
@@ -258,8 +305,10 @@ class LatexMathParser {
         const marker = this.source[this.index];
         this.index += 1;
         const value = this.parseScriptValue();
-        if (marker === '_') subScript = value;
-        else superScript = value;
+        // `x^{a}^{b}` is malformed LaTeX (double superscript). Keep the first
+        // rather than silently discarding it.
+        if (marker === '_') subScript ??= value;
+        else superScript ??= value;
         this.skipWhitespace();
       }
 
@@ -330,7 +379,12 @@ class LatexMathParser {
       return [{ type: 'function', name: command, children: this.parseFunctionArgument() }];
     }
     if (command === 'operatorname') {
-      const name = this.readRequiredGroupText();
+      // `\operatorname*{argmax}` is the same command with a star; without this
+      // the star was read as the group and the name came back empty.
+      if (this.source[this.index] === '*') this.index += 1;
+      // Spacing macros inside the name (`\operatorname{arg\,max}`) are layout,
+      // not part of the operator's text.
+      const name = this.readRequiredGroupText().replace(/\\[,;:!\s]+/g, '');
       return [{ type: 'function', name, children: this.parseFunctionArgument() }];
     }
     if (command === 'binom') {
@@ -377,7 +431,15 @@ class LatexMathParser {
     if (command === 'qquad') return [{ type: 'run', text: '        ' }];
     if (command === '!' || command === ' ') return [];
 
-    return [{ type: 'run', text: MATH_SYMBOLS[command] ?? command }];
+    const symbol = MATH_SYMBOLS[command];
+    if (symbol !== undefined) return [{ type: 'run', text: symbol }];
+
+    // A single non-letter command is an escaped literal (`\%`, `\{`, `\\`).
+    if (!/^[A-Za-z]+$/.test(command)) return [{ type: 'run', text: command }];
+
+    // An unknown command keeps its backslash, so it renders as visibly
+    // unsupported instead of silently becoming a bare identifier.
+    return [{ type: 'run', text: `\\${command}` }];
   }
 
   private parseRequiredGroup(): LatexMathNode[] {
@@ -503,9 +565,12 @@ class LatexMathParser {
     while ((match = marker.exec(this.source))) {
       if (match[1] === 'begin') depth += 1;
       else depth -= 1;
-      if (depth === 0 && match[2].trim() === name) {
+      if (depth === 0) {
         const body = this.source.slice(start, match.index);
-        this.index = marker.lastIndex;
+        // Only consume the `\end` when it closes the environment we opened.
+        // A mismatched name used to keep scanning to EOF and swallow the whole
+        // remainder of the equation into this node.
+        this.index = match[2].trim() === name ? marker.lastIndex : match.index;
         return body;
       }
     }
@@ -619,7 +684,13 @@ function splitEnvironmentRows(source: string): string[][] {
 
 // ── OMML generation via pandoc ────────────────────────────
 
-function generateOMMLviaPandoc(latex: string): string | null {
+/** Result of the pandoc attempt: either OMML, or why it could not be produced. */
+interface PandocResult {
+  omml?: string;
+  error?: string;
+}
+
+function generateOMMLviaPandoc(latex: string): PandocResult {
   let mdPath: string | undefined;
   let docxPath: string | undefined;
   try {
@@ -644,10 +715,12 @@ function generateOMMLviaPandoc(latex: string): string | null {
 
     // Extract OMML from the generated DOCX
     const omml = extractOMML(docxPath);
-
-    return omml;
-  } catch {
-    return null;  // pandoc not available, fall back to Unicode
+    return omml ? { omml } : { error: 'pandoc produced no <m:oMath> element' };
+  } catch (error: unknown) {
+    // Report why: "pandoc is not installed" and "pandoc failed on this input"
+    // need different responses from the caller.
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: message.split('\n')[0] };
   } finally {
     for (const path of [mdPath, docxPath]) {
       if (path && existsSync(path)) {

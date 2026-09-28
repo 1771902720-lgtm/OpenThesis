@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isLatexMath, latexToMathAst, latexToPlainText } from '../packages/equation-engine/dist/index.js';
+import { isLatexMath, latexToMathAst, latexToPlainText, convertLatexToOmml } from '../packages/equation-engine/dist/index.js';
 
 test('converts common LaTeX symbols and scripts to Unicode', () => {
   assert.equal(latexToPlainText('E = mc^{2}'), 'E = mc²');
@@ -116,4 +116,60 @@ test('does not mistake \\leftarrow for \\left', () => {
   assert.equal(node.type, 'delimiter');
   assert.equal(node.closing, ')');
   assert.match(JSON.stringify(node.children), /←/);
+});
+
+test('parses \\operatorname with an optional star and spacing macros', () => {
+  // The star used to be read as the group, leaving the name empty.
+  // `_{x}` then attaches to the operator, so the function sits inside a script.
+  const starred = latexToMathAst('\\operatorname*{argmax}_{x}')[0];
+  assert.equal(starred.type, 'script');
+  assert.equal(starred.base[0].type, 'function');
+  assert.equal(starred.base[0].name, 'argmax');
+
+  const spaced = latexToMathAst('\\operatorname{arg\\,max}')[0];
+  assert.equal(spaced.name, 'argmax');
+});
+
+test('keeps the backslash on an unknown command', () => {
+  // Silently dropping it turned `\foo` into an identifier that looked intended.
+  assert.deepEqual(latexToMathAst('\\foo')[0], { type: 'run', text: '\\foo' });
+  // Escaped literals are still emitted bare.
+  assert.deepEqual(latexToMathAst('\\%')[0], { type: 'run', text: '%' });
+});
+
+test('does not swallow the rest of the equation when an environment name mismatches', () => {
+  const nodes = latexToMathAst('\\begin{aligned}a&=b\\end{matrix}+c');
+  const text = JSON.stringify(nodes);
+  // The old scanner ran to EOF on a mismatched name, so `+c` vanished.
+  assert.match(text, /\+/);
+  assert.match(text, /c/);
+});
+
+test('keeps the first superscript of a malformed double superscript', () => {
+  const node = latexToMathAst('x^{a}^{b}')[0];
+  assert.equal(node.type, 'script');
+  assert.deepEqual(node.superScript, [{ type: 'run', text: 'a' }]);
+});
+
+test('reports which conversion path was used, and why the fallback was taken', () => {
+  // pandoc may or may not be installed, so assert the contract rather than the
+  // path: the conversion must always say where it came from.
+  const plain = convertLatexToOmml('\\alpha + \\beta');
+  assert.ok(['pandoc', 'unicode'].includes(plain.source));
+
+  if (plain.source === 'pandoc') {
+    assert.match(plain.value, /<m:oMath/);
+    assert.equal(plain.lossy, false);
+  } else {
+    assert.equal(plain.value, 'α + β');
+    assert.equal(plain.lossy, false);
+    assert.ok(plain.reason, 'the fallback must say why pandoc was unavailable');
+  }
+
+  // Constructs the Unicode path cannot express are flagged as lossy.
+  const matrix = convertLatexToOmml('\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}');
+  if (matrix.source === 'unicode') {
+    assert.equal(matrix.lossy, true);
+    assert.ok(matrix.reason);
+  }
 });
