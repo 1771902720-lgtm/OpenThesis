@@ -76,11 +76,23 @@ thesis build <manuscript.md> --type thesis -t <template.json> -o output.docx
 | Template parsing | Works best with real Word templates | Current: works for most templates |
 | Markdown inline styling | Paragraph schema stores plain text | Future: rich inline ranges |
 | Markdown dialect | Predictable manuscript subset | Expand only with compatibility tests |
-| Lists | Rendered as text with an explicit `•` / `1.` marker, not Word numbering | Emit real numbering, or keep and document |
-| Content validation | No document validator; malformed JSON fails inside the renderer | Add a validation pass with clear messages |
-| Multi-section templates | Only the body-level `w:sectPr` is read, so paragraph-level section breaks are ignored | Walk `w:p/w:pPr/w:sectPr` |
+| Multi-section templates | Every section is read into `pageSections`, but only the last is rendered | Emit real section breaks when a document spans setups |
+| Unsupported LaTeX | The Unicode fallback is lossy; `convertLatexToOmml` reports it, but the AST path has no diagnostic channel | Surface unsupported syntax on the rendered document |
+| Inline formatting | `InlineRange` / `RichParagraph` exist in the schema but nothing produces or reads them | Either implement or remove |
 
 See `AUDIT.md` for the full audit, including the findings that are still open.
+
+## Diagnostics
+
+Both entry points now report problems instead of failing silently:
+
+- `thesis parse` prints a `warnings` list — a template that carries no
+  formatting at all, a style inheriting from an undefined style, or a document
+  with more sections than can be rendered. The same array is stored on the
+  template JSON.
+- `thesis build` runs `validateDocument` / `validateLegacyDocument` first and
+  reports every problem at once with a path such as
+  `sections[0].content[2].headers`, instead of failing inside the OOXML builder.
 
 ## Known gap: the built-in USTB template
 

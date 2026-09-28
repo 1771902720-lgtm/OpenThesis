@@ -98,30 +98,33 @@ Status: **Fixed** = changed in this branch with a regression test.
 | P1-22 | `[^}]+` cannot match nested braces, so `\frac{a_{1}}{b}` leaked as `\fraca_1/b` | Fixed |
 | P1-23 | `/\\(left\|right)\s*/` also matched `\leftarrow`, so the real `\right` was eaten and the delimiter swallowed the rest of the equation | Fixed |
 
-### P2 — correctness and maintainability, still open
+### P2 — correctness and maintainability
 
-| # | Finding |
-|---|---|
-| P2-1 | `latexToOMML` falls back to Unicode whenever pandoc is missing **or fails for any reason**, silently. The path is effectively dead — `docx-renderer` imports only `latexToMathAst` / `latexToPlainText`. |
-| P2-2 | `\operatorname*{argmax}_{x}`: the `*` is not consumed, yielding an empty function name plus a stray run and group. |
-| P2-3 | `\begin{aligned}…\end{matrix}` (mismatched name) silently consumes the rest of the input as the environment body. |
-| P2-4 | Unknown commands lose their backslash in the AST (`\foo` → run `foo`). |
-| P2-5 | `x^{a}^{b}` silently overwrites the first superscript. |
-| P2-6 | Escaped `&` after a row break is mis-detected (`\\&`), merging two cells into one. |
-| P2-7 | Only the body-level `w:sectPr` is read; paragraph-level section breaks are ignored, so multi-section templates (cover + body, landscape appendix) expose one section. |
-| P2-8 | `removeNSPrefix: false` hardcodes the `w:` prefix; a styles.xml using another prefix yields a zero-style template with no error. |
-| P2-9 | `basedOn` cycles are accepted and produce order-dependent merges. |
-| P2-10 | `lineSpacing` stores the raw `w:line` and drops `lineRule`, so `auto` (240ths) and `exact` (twips) are conflated. |
-| P2-11 | Markdown list nesting is `floor(indent / 2)`, so standard 2- and 4-space nesting is mis-levelled. |
-| P2-12 | Inline formatting is destroyed on import while `InlineRange` / `RichParagraph` exist in the schema and are referenced nowhere — dead types advertising a capability that does not exist. |
-| P2-13 | Lists render as plain text runs with a manual `•` / `1.` prefix, not Word numbering. README:164 claims "native document rendering". |
-| P2-14 | No document validator exists anywhere; the only runtime checks live in the renderer. |
-| P2-15 | `$$a=b$$ trailing` mis-parses and then consumes following lines until one ends with `$$`. |
-| P2-16 | A document starting with `---` and no front matter silently drops everything up to the next `---`. |
-| P2-17 | An invalid official `category` silently becomes `通知`; `degree: PhD` silently becomes `undefined`. |
-| P2-18 | `resolveStyle` scans `styleRoles` linearly for every block — O(styles × blocks). |
-| P2-19 | CLI: no `--version`, no stdin/stdout, no `mkdir -p` for the output directory, no overwrite protection for an existing output (only the input/template equality guards were added). |
-| P2-20 | Agent-skill documentation mismatches: the undocumented `thesis` prefix (all skill examples omit it while `command = args[0]` requires it), overstated fence support, missing block-list caveat, `schema.md` omits `backMatter`, and `workflows.md` hardcodes a Linux `/root/.codex/...` path. |
+Status: **Fixed** = changed on this branch with a regression test; **Partial** = the
+reported symptom is addressed but a related gap remains; **Open** = unchanged.
+
+| # | Finding | Status |
+|---|---|---|
+| P2-1 | `latexToOMML` falls back to Unicode whenever pandoc is missing **or fails for any reason**, silently. | Fixed — `convertLatexToOmml` returns `{ source, lossy, reason }`, and `latexToOMML` warns. |
+| P2-2 | `\operatorname*{argmax}_{x}`: the `*` is not consumed, yielding an empty function name plus a stray run and group. | Fixed |
+| P2-3 | `\begin{aligned}…\end{matrix}` (mismatched name) silently consumes the rest of the input as the environment body. | Fixed — the scanner stops at depth 0 and leaves the index at the mismatched `\end`. |
+| P2-4 | Unknown commands lose their backslash in the AST (`\foo` → run `foo`). | Fixed — `\foo` now stays `\foo`; escaped literals (`\%`) are still bare. |
+| P2-5 | `x^{a}^{b}` silently overwrites the first superscript. | Fixed — the first wins. |
+| P2-6 | Escaped `&` after a row break is mis-detected (`\\&`), merging two cells into one. | Open |
+| P2-7 | Only the body-level `w:sectPr` is read; paragraph-level section breaks are ignored. | Fixed — all sections are collected into `pageSections`; only the last is rendered, and that is now warned about. |
+| P2-8 | `removeNSPrefix: false` hardcodes the `w:` prefix; a styles.xml using another prefix yields a zero-style template with no error. | Partial — a zero-style template now warns, but a non-`w:` prefix still parses to nothing. |
+| P2-9 | `basedOn` cycles are accepted and produce order-dependent merges. | Partial — a `basedOn` pointing at a missing style now warns; cycles are still accepted. |
+| P2-10 | `lineSpacing` stores the raw `w:line` and drops `lineRule`, so `auto` (240ths) and `exact` (twips) are conflated. | Open |
+| P2-11 | Markdown list nesting is `floor(indent / 2)`, so standard 2- and 4-space nesting is mis-levelled. | Fixed — level comes from the marker's column. |
+| P2-12 | `InlineRange` / `RichParagraph` exist in the schema and are referenced nowhere. | Open — documented in `CLAUDE.md`; either implement or remove. |
+| P2-13 | Lists render as plain text runs with a manual `•` / `1.` prefix, not Word numbering. | Fixed — real OOXML numbering, each list restarting its own counter. |
+| P2-14 | No document validator exists anywhere; the only runtime checks live in the renderer. | Fixed — `validateDocument` / `validateLegacyDocument`, run by `build`. |
+| P2-15 | `$$a=b$$ trailing` mis-parses and then consumes following lines until one ends with `$$`. | Open |
+| P2-16 | A document starting with `---` and no front matter silently drops everything up to the next `---`. | Open |
+| P2-17 | An invalid official `category` silently becomes `通知`; `degree: PhD` silently becomes `undefined`. | Partial — the validator now rejects an invalid category at build time; the Markdown parser still coerces it. |
+| P2-18 | `resolveStyle` scans `styleRoles` linearly for every block — O(styles × blocks). | Open |
+| P2-19 | CLI: no `--version`, no stdin/stdout, no `mkdir -p` for the output directory, no overwrite protection for an existing output. | Partial — the documented `thesis <command>` prefix is now accepted; the rest is open. |
+| P2-20 | Agent-skill documentation mismatches. | Fixed — block sequences, fence info strings, caption precedence, H1 handling, `backMatter`, and the platform-specific validator path are all corrected. |
 
 ### Repository hygiene
 
@@ -140,13 +143,13 @@ Status: **Fixed** = changed in this branch with a regression test.
 |---|---|
 | `document-schema` | `FontSettings.name/eastAsia/size` and `ParagraphFormatting.alignment` are optional — a parsed template declares only what it specifies. Added `StyleRole` (`BlockType` + `table_header` + `figure_caption`). |
 | `template-parser` | Merge `w:pPr/w:rPr` under the style-level `w:rPr`. Convert `*Chars` indents to twips. Stop inventing fallback values. Skip non-paragraph styles when assigning block roles. Anchor the caption pattern; add an `equation` pattern. Order role assignment so an explicit or `w:default` style wins the renderer's first-match lookup. |
-| `docx-renderer` | Split `THESIS_STYLES` from `OFFICIAL_STYLES` (GB/T 9704-2012) and add `heading4`, `table`, `table_header`, `figure_caption`. `resolveStyle` merges the template **per property** over the role default. Table width derives from `page.width − margins`; table and caption typography resolve from the template. Image width fits the printable page. Exhaustive `mathComponents` switch. Equation fallback now warns. |
-| `equation-engine` | Exact-command symbol lookup (no prefix collisions). Brace-aware group matching for `\frac`, `\sqrt`, accents and `\text`. Bare-script conversion. `\text{}` keeps its spaces; the insignificant space after it is dropped. `\leftarrow` no longer matches `\left`. |
-| `cli` | `--flag=value` support, unknown-flag rejection, case-insensitive input/output equality (plus output ≠ template), BOM stripping, `init` shares the same option reader. |
-| `markdown-parser` | Emphasis requires real delimiters (no intraword `_`, no space-flanked `*`); only tag-shaped `<…>` is stripped and autolinks keep their target. Heading closing-hash requires a space. Front-matter block sequences. Quote-aware list splitting. Single-column tables. Extended fence info strings. |
+| `docx-renderer` | Split `THESIS_STYLES` from `OFFICIAL_STYLES` (GB/T 9704-2012) and add `heading4`, `table`, `table_header`, `figure_caption`. `resolveStyle` merges the template **per property** over the role default. Table width derives from `page.width − margins`; table and caption typography resolve from the template. Image width fits the printable page. Exhaustive `mathComponents` switch. Equation fallback now warns. Lists use real OOXML numbering with per-list restart. |
+| `equation-engine` | Exact-command symbol lookup (no prefix collisions). Brace-aware group matching for `\frac`, `\sqrt`, accents and `\text`. Bare-script conversion. `\text{}` keeps its spaces; the insignificant space after it is dropped. `\leftarrow` no longer matches `\left`. `\operatorname*`, unknown-command preservation, environment-name mismatch, double superscript, and a conversion diagnostic (`convertLatexToOmml`). |
+| `cli` | `--flag=value` support, unknown-flag rejection, case-insensitive input/output equality (plus output ≠ template), BOM stripping, `init` shares the same option reader, the documented `thesis <command>` prefix, content validation before rendering, and template-warning relay. |
+| `markdown-parser` | Emphasis requires real delimiters (no intraword `_`, no space-flanked `*`); only tag-shaped `<…>` is stripped and autolinks keep their target. Heading closing-hash requires a space. Front-matter block sequences. Quote-aware list splitting. Single-column tables. Extended fence info strings. List level derived from the marker column. |
 | `assets/ustb-thesis-template.json` | The 72 entries that were byte-identical to the old invented defaults were stripped to empty objects. **This file still needs regenerating from the original `.docx`** (`thesis parse <template.docx>`) to recover any formatting the old parser dropped — see §5. |
 
-Test count: **29 → 54**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
+Test count: **29 → 79**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
 
 ---
 
@@ -188,13 +191,22 @@ fidelity for every user of the built-in template.
 
 ## 6. Suggested next steps
 
-1. Regenerate the USTB template JSON (§5).
-2. Add real university and journal `.docx` files under `tests/fixtures/` — now
+Items 3–5 of the original list are done on this branch. What remains:
+
+1. **Regenerate the USTB template JSON (§5).** Still the highest-value single action.
+2. **Add real university and journal `.docx` files under `tests/fixtures/`** — now
    unblocked by the `.gitignore` change — and assert parsed geometry and roles.
-3. Close the remaining P2 equation gaps (`\operatorname*`, environment mismatch,
-   unknown-command preservation) and surface unsupported LaTeX as a diagnostic
-   instead of a silent Unicode downgrade.
-4. Emit real Word numbering for lists instead of manual markers, or correct the
-   README's "native document rendering" claim.
-5. Add a document validator so a malformed content JSON fails with a clear message
-   instead of deep inside the renderer.
+3. **Close the remaining P2 items**: escaped `&` after a row break (P2-6),
+   `w:line` / `lineRule` conflation (P2-10), the `$$a=b$$ trailing` mis-parse
+   (P2-15), a leading `---` with no front matter (P2-16), and `resolveStyle`'s
+   linear scan (P2-18).
+4. **Decide on `InlineRange` / `RichParagraph`** (P2-12): implement inline
+   formatting on import, or delete the dead types.
+5. **Emit real section breaks** for templates that declare more than one section
+   geometry — currently all sections are read but only the last is rendered, and
+   the template now warns about it.
+6. **CLI polish** (P2-19): `--version`, stdin/stdout, creating the output
+   directory, and overwrite protection for an existing output.
+7. **Non-`w:` namespace prefixes** (P2-8): the parser still keys on the literal
+   `w:` prefix, so a template using another prefix for the same namespace parses
+   to zero styles (it does now warn).
