@@ -278,3 +278,36 @@ engine, so it cannot know on which page a chapter lands.
 5. **Not expressible at all** (needs Word, documented rather than attempted):
    rasterised auto-numbers, right-aligned equation numbers, TOC dot leaders,
    the 页眉 bottom rule, and English caption/title lines as separate styles.
+
+### Found by reading the template's own parts (not yet fixed)
+
+The template package holds 47 parts; the tool opens two of them
+(`styles.xml`, `document.xml`). Reading the rest turned up these, each with the
+file it comes from:
+
+6. **Headers and footers are hardcoded.** The renderer writes
+   `${organization}学位论文` and a centred page number, ignoring the template
+   entirely. The template's 篇眉 is centred 五号 with a 0.5 pt bottom border, odd
+   pages read 北京科技大学硕士学位论文 and even pages carry the thesis title —
+   which additionally needs `<w:evenAndOddHeaders/>` in `settings.xml`, never
+   written, so even-page heads are unreachable even once they are emitted.
+   Cover suppression is by referencing *empty* header parts; there is no
+   `titlePg` anywhere in the template. (`word/header*.xml`, `word/footer*.xml`)
+7. **Chapter numbers exist only in `numbering.xml`.** They are bound to styles
+   through `w:lvl/w:pStyle` plus the style's `w:numPr` (`%1`, `%1.%2`, `%1.%2.%3`
+   for `1`, `u2`, `u3`; `附录 %1` from numId 4). A regex for `numPr|numId` over
+   the parser's output is false, so nothing survives. Watch numId 0 on `u4` and
+   the figure captions: that means "remove numbering", and a generator that
+   treats every numId as "apply numbering" gets it backwards.
+8. **`w:beforeLines` / `w:afterLines` are unparsed**, so `ua` reports 10 twips
+   where the template means 0.1 line; and `firstLineChars` is converted with the
+   style's *own* size rather than the inherited one, so `af8`/`aff` record 480
+   where 420 is right.
+9. **Equations change representation.** The template's twelve formulas are all
+   OLE objects (8× MathType `Equation.DSMT4`, 4× AutoCAD) with WMF previews — it
+   has **zero** `m:oMath` — while the renderer emits native OMML, and centres it
+   where the template right-aligns at tab stop 8820. Its `MTConvertedEquation`
+   style is `Cambria Math` italic and is never applied.
+10. **`fixChineseFonts` is over-broad.** It strips every `w:*Theme` attribute and
+    rewrites Latin `w:eastAsia` values to 仿宋. Harmless for this template,
+    hostile to one that says what it means.
