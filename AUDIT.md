@@ -251,18 +251,24 @@ Measured against two authorities: `《北京科技大学研究生学位论文书
 | 图题 / 表题 | 黑体 10.5pt centred; the table caption has its own role and spacing |
 | 参考文献条目 | 宋体 12pt, hanging 1cm, 10/10/312 |
 | 页码与篇眉 | page numbers and a running head are emitted |
+| 封面三级样式 | `cover_title` / `cover_line` / `cover_meta` resolve from the template: 小二 18pt bold centred, 四号 14pt bold justified, 五号 10.5pt |
+| 目录 | a `type: "toc"` section emits the 目录 heading plus a real `TOC \h \o "1-3"` field |
+| 装订线 1cm + 对称页边距 | `w:gutter="567"` and `w:mirrorMargins`; the accepted thesis alternates 4.00/3.00 cm columns |
+
+**One step stays manual.** The directory page numbers come from the `TOC` field,
+which only Word can evaluate: after `thesis build`, open the document and update
+the field (Ctrl+A then F9, or right-click → 更新域). A generator has no layout
+engine, so it cannot know on which page a chapter lands.
 
 ### Not yet delivered
 
-1. **Cover page layout.** The guide's 表 4 is a per-box specification and the
-   template carries matching cover styles (`z1` 小二 18pt bold, `z2` 小三 15pt…),
-   but cover blocks are still styled by the content (`font_size_pt`), not by the
-   template. A `cover_*` role set is the next step.
-2. **TOC entries.** `TOC1/2/3` are currently treated as body paragraphs, and no
-   TOC is generated. Real page numbers require Word to recalculate the `TOC`
-   field — a generator cannot compute them. The honest options are: emit the
-   field and tell the author to update it in Word, or emit a static list without
-   page numbers.
+1. **Cover page layout beyond the three tiers.** `cover_title` / `cover_line` /
+   `cover_meta` are in place and verified, but the guide's 表 4 also fixes the
+   *positions* of those boxes (间距 5 cm, 书脊), which the content model still
+   expresses as spacers.
+2. **TOC entry styles.** The field is emitted, but `TOC1/2/3` are still mapped to
+   `paragraph`, so the entries Word generates keep Word's own TOC formatting
+   rather than the template's.
 3. **Front/back-matter sections.** The thesis uses a different footer distance in
    the front matter (1.68 cm) than in the body (2.36 cm). The renderer still
    emits a single section, so only one distance can be produced.
