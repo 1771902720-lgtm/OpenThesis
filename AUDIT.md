@@ -228,3 +228,47 @@ template has been regenerated (§5). What remains:
    `renderParagraph` splitting `text` at range boundaries.
 4. **Unsupported LaTeX diagnostics**: surface unsupported syntax on the rendered
    document instead of only through `convertLatexToOmml`.
+
+---
+
+## 7. Submission readiness against the template
+
+Measured against two authorities: `《北京科技大学研究生学位论文书写指南》.docx`, and a
+**139-page accepted thesis** produced with the template, inspected page by page
+(PyMuPDF: fonts, sizes, per-element ink boxes, odd/even text columns).
+
+### Verified in the rendered OOXML
+
+| Property | Evidence |
+|---|---|
+| Page size / margins | A4, 上3cm 下2cm 左右3cm — the template's own `w:pgMar` |
+| 装订线 1cm | `w:gutter="567"`; the thesis adds it to the **inside** edge only |
+| 对称页边距 | `w:mirrorMargins`; thesis text columns alternate 4.00/3.00 cm and 3.00/4.00 cm on odd/even pages |
+| 一级标题 | 黑体 15pt bold centred, 340/340, 1.3 倍行距 |
+| 二/三级标题 | 黑体 14pt bold, 260/260; hanging 1cm / 1.25cm (thesis measures level 3 at 708 twips) |
+| 正文 | 宋体 12pt justified, `w:firstLine="480"`, `w:line="312"` |
+| 特殊标题 (摘要/目录/序/附录/致谢/参考文献) | `w:line="579"` (2.41 倍), 340/330 — asserted in `tests/docx-renderer.test.mjs` |
+| 图题 / 表题 | 黑体 10.5pt centred; the table caption has its own role and spacing |
+| 参考文献条目 | 宋体 12pt, hanging 1cm, 10/10/312 |
+| 页码与篇眉 | page numbers and a running head are emitted |
+
+### Not yet delivered
+
+1. **Cover page layout.** The guide's 表 4 is a per-box specification and the
+   template carries matching cover styles (`z1` 小二 18pt bold, `z2` 小三 15pt…),
+   but cover blocks are still styled by the content (`font_size_pt`), not by the
+   template. A `cover_*` role set is the next step.
+2. **TOC entries.** `TOC1/2/3` are currently treated as body paragraphs, and no
+   TOC is generated. Real page numbers require Word to recalculate the `TOC`
+   field — a generator cannot compute them. The honest options are: emit the
+   field and tell the author to update it in Word, or emit a static list without
+   page numbers.
+3. **Front/back-matter sections.** The thesis uses a different footer distance in
+   the front matter (1.68 cm) than in the body (2.36 cm). The renderer still
+   emits a single section, so only one distance can be produced.
+4. **Automatic chapter numbering.** The template's `numbering.xml` produces `1`,
+   `1.1`, `2.3.3`; the renderer emits real list numbering for lists but not for
+   headings, so a heading's number is whatever the content JSON says.
+5. **Not expressible at all** (needs Word, documented rather than attempted):
+   rasterised auto-numbers, right-aligned equation numbers, TOC dot leaders,
+   the 页眉 bottom rule, and English caption/title lines as separate styles.

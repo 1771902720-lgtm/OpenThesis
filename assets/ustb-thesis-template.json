@@ -842,7 +842,8 @@
         "alignment": "center",
         "spaceBefore": 10,
         "spaceAfter": 10
-      }
+      },
+      "lineSpacing": 312
     },
     "ub": {
       "font": {
