@@ -1748,19 +1748,13 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
   // 2. Fix docDefaults eastAsia font
   buffer = await fixChineseFonts(buffer);
 
-  // ── Post-process: mirror margins for double-sided binding ────
-  // The guide asks for 对称页边距 on a bound thesis and the writer library has no
-  // option for it, so the flag goes straight into every section property block.
-  if (template.page.mirrorMargins) {
-    buffer = await addMirrorMargins(buffer);
-  }
-
-  // ── Post-process: mirror margins for double-sided binding ────
-  // The guide asks for 对称页边距 and the writer library cannot express it, so
-  // the flag goes straight into every section property block.
-  if (template.page.mirrorMargins) {
-    buffer = await addMirrorMargins(buffer);
-  }
+  // ── Post-process: document settings ─────────────────────────
+  // 对称页边距 and "refresh fields on open" are both `w:settings` children, not
+  // section properties, so they are written into settings.xml after packing.
+  // `updateFields` matters because the 目录 is a TOC field whose page numbers only
+  // exist once Word evaluates it — and the source template does not set it, so a
+  // generated thesis would otherwise open with an empty table of contents.
+  buffer = await patchSettings(buffer, { mirrorMargins: Boolean(template.page.mirrorMargins) });
 
   if (options.outputPath) {
     // `-o a/b/c.docx` should behave like `mkdir -p` rather than fail with an
@@ -1797,24 +1791,30 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
  * package is built. Idempotent: a document that already declares it is returned
  * untouched.
  */
-async function addMirrorMargins(buffer: Buffer): Promise<Buffer> {
-  // `w:mirrorMargins` is a *document* setting, a child of `w:settings` — it is
-  // NOT a legal child of `w:sectPr`. Writing it into document.xml (as this first
-  // did) produces a part Word ignores or repairs, and a verification that only
-  // greps for the string cannot tell the difference.
+async function patchSettings(buffer: Buffer, options: { mirrorMargins: boolean }): Promise<Buffer> {
+  // `w:mirrorMargins` and `w:updateFields` are *document* settings — children of
+  // `w:settings` in `word/settings.xml`. Neither is a legal child of `w:sectPr`,
+  // so writing them into document.xml (as the first attempt did) produces a part
+  // Word ignores or repairs, and a verification that only greps for the string
+  // cannot tell the difference.
   const zip = await JSZip.loadAsync(buffer);
   const entry = zip.file('word/settings.xml');
   if (!entry) return buffer;
 
-  const xml = await entry.async('string');
-  if (xml.includes('<w:mirrorMargins')) return buffer;
+  let xml = await entry.async('string');
 
-  const patched = /<w:settings[^>]*>/.test(xml)
-    ? xml.replace(/(<w:settings[^>]*>)/, '$1<w:mirrorMargins/>')
-    : xml;
-  if (patched === xml) return buffer;
+  // Ask Word to refresh fields when the document opens, so the 目录 and its page
+  // numbers are right on the first look rather than after a manual F9.
+  if (!xml.includes('<w:updateFields')) {
+    xml = xml.replace(/(<w:settings[^>]*>)/, '$1<w:updateFields w:val="true"/>');
+  }
 
-  zip.file('word/settings.xml', patched);
+  if (options.mirrorMargins && !xml.includes('<w:mirrorMargins')) {
+    xml = xml.replace(/(<w:settings[^>]*>)/, '$1<w:mirrorMargins/>');
+  }
+
+  if (xml === await entry.async('string')) return buffer;
+  zip.file('word/settings.xml', xml);
   return zip.generateAsync({ type: 'nodebuffer' });
 }
 
