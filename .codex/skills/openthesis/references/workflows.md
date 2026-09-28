@@ -9,7 +9,7 @@
 Prepare a fresh checkout:
 
 ```bash
-git clone https://github.com/1771902720-lgtm/OpenThesis.git
+git clone https://github.com/Gluxggg/OpenThesis.git
 cd OpenThesis
 pnpm install --frozen-lockfile
 pnpm build
