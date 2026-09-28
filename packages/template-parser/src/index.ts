@@ -350,7 +350,6 @@ function extractParagraphProps(pPr: any, runSize?: number): RawParagraphProps | 
   if (pPr['w:keepNext']) props.keepNext = true;
   if (pPr['w:keepLines']) props.keepLines = true;
   if (pPr['w:pageBreakBefore']) props.pageBreakBefore = true;
-
   return Object.keys(props).length > 0 ? props : undefined;
 }
 
@@ -554,6 +553,9 @@ function rawToParagraphStyle(raw: RawStyle): ParagraphStyle {
     }),
     paragraph: definedOnly({
       alignment: mapAlignment(raw.pPr?.alignment),
+      // A chapter starts on a new page; the flag was parsed and then dropped
+      // here, so every chapter ran on from the previous one.
+      pageBreakBefore: raw.pPr?.pageBreakBefore,
       firstLineIndent: raw.pPr?.indent?.firstLine,
       hangingIndent: raw.pPr?.indent?.hanging,
       leftIndent: raw.pPr?.indent?.left,

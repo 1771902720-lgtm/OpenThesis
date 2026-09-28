@@ -316,6 +316,9 @@ function renderHeading(
     // Headings carry the guide's hanging indent (0.75 / 1 / 1.25 cm); this
     // paragraph never emitted an indent at all, so it was dropped silently.
     indent: indentOf(style),
+    // The guide wants a page break between chapters, and the chapter style
+    // declares one.
+    pageBreakBefore: style.paragraph.pageBreakBefore,
     spacing: {
       before: style.paragraph.spaceBefore,
       after: style.paragraph.spaceAfter,

@@ -136,6 +136,13 @@ export interface ParagraphFormatting {
   spaceBefore?: number;
   spaceAfter?: number;
   outlineLevel?: number;
+  /**
+   * Start this paragraph on a fresh page. The guide requires a page break
+   * between chapters, and the template declares it on the chapter style —
+   * parsing kept the flag but the style mapping dropped it, so every chapter
+   * ran on from the previous one.
+   */
+  pageBreakBefore?: boolean;
 }
 
 // ════════════════════════════════════════════════════════════
