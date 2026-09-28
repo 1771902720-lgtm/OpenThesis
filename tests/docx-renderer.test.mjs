@@ -443,3 +443,36 @@ test('applies the guide formatting the built-in template carries', async () => {
   assert.match(xml, /w:firstLine="480"/);
   assert.match(xml, /w:line="312"/);
 });
+
+test('styles the cover from the template, one tier at a time', async () => {
+  // The guide specifies the cover box by box: 校名行 小二 18pt bold centred,
+  // 研究生/指导教师 四号 14pt bold on justified rows, 中图分类号 五号. The renderer
+  // used to hardcode centre and one size for every cover line.
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Cover' },
+      cover: [
+        { type: 'centered_text', text: '北京科技大学博士学位论文', styleRole: 'cover_title' },
+        { type: 'centered_text', text: '研究生  张三', styleRole: 'cover_line' },
+        { type: 'centered_text', text: '中图分类号：TU3', styleRole: 'cover_meta' },
+      ],
+      sections: [{ id: 'a', type: 'chapter', title: '第一章', content: [] }],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+
+  const para = text => xml.split(/<\/w:p>/).find(chunk => chunk.includes(text)) ?? '';
+  const title = para('北京科技大学博士学位论文');
+  assert.match(title, /<w:sz w:val="36"\/>/);       // 小二
+  assert.match(title, /<w:b\/>/);
+  assert.match(title, /<w:jc w:val="center"\/>/);
+
+  const line = para('研究生  张三');
+  assert.match(line, /<w:sz w:val="28"\/>/);        // 四号
+  assert.match(line, /<w:jc w:val="both"\/>/);      // the guide's 两端对齐 row
+
+  const meta = para('中图分类号：TU3');
+  assert.match(meta, /<w:sz w:val="21"\/>/);        // 五号
+  assert.doesNotMatch(meta, /<w:b\/>/);
+});

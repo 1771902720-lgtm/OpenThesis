@@ -993,6 +993,40 @@
         "alignment": "justified",
         "firstLineIndent": 480
       }
+    },
+    "coverTitle": {
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 36,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center"
+      },
+      "lineSpacing": 240
+    },
+    "coverLine": {
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 28,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "justified"
+      },
+      "lineSpacing": 360
+    },
+    "coverMeta": {
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     }
   },
   "styleRoles": {
@@ -1053,7 +1087,10 @@
     "section_heading": "u5",
     "figure_caption": "u4",
     "table_caption": "ub",
-    "reference_item": "u0"
+    "reference_item": "u0",
+    "cover_title": "coverTitle",
+    "cover_line": "coverLine",
+    "cover_meta": "coverMeta"
   },
   "styleInheritance": {
     "1": "u1",

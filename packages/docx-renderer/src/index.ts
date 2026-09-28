@@ -361,7 +361,7 @@ function renderCenteredText(
   block: CenteredTextBlock,
   docType?: string,
 ): Paragraph {
-  const style = resolveStyle(template, 'centered_text', docType);
+  const style = resolveStyle(template, block.styleRole ?? 'centered_text', docType);
   const actualSize = block.font_size_pt
     ? block.font_size_pt * 2  // convert pt → half-pt
     : style.font.size;
@@ -380,7 +380,9 @@ function renderCenteredText(
         },
       }),
     ],
-    alignment: AlignmentType.CENTER,
+    // The cover's own styles decide the alignment: 校名行 is centred while the
+    // 研究生/指导教师 rows are justified rows. Hardcoding centre ignored them.
+    alignment: mapAlignment(style.paragraph.alignment) ?? AlignmentType.CENTER,
     spacing: { ...lineStyle(style) },
   });
 }

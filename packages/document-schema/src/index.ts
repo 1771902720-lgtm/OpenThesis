@@ -165,7 +165,8 @@ export interface BaseBlock { type: BlockType; id?: string; }
  */
 export type StyleRole = BlockType
   | 'table_header' | 'figure_caption' | 'table_caption'
-  | 'section_heading' | 'reference_item';
+  | 'section_heading' | 'reference_item'
+  | 'cover_title' | 'cover_line' | 'cover_meta';
 
 export interface HeadingBlock extends BaseBlock {
   type: 'heading1' | 'heading2' | 'heading3' | 'heading4';
@@ -188,6 +189,14 @@ export interface ParagraphBlock extends BaseBlock {
 export interface CenteredTextBlock extends BaseBlock {
   type: 'centered_text';
   text: string; font_size_pt?: number; bold?: boolean;
+  /**
+   * Use the template's style for this line instead of the block-level defaults.
+   *
+   * The cover page is specified box by box (校名行 小二 18pt bold, 研究生/指导教师
+   * 四号 bold at 1.5 line spacing, 中图分类号 五号), so the three tiers are roles
+   * of their own rather than one `centered_text` style.
+   */
+  styleRole?: 'cover_title' | 'cover_line' | 'cover_meta';
 }
 
 export interface EquationBlock extends BaseBlock {
