@@ -205,7 +205,7 @@ This is the **key differentiator** vs docxtemplater/dolanmiu-docx: those tools f
 | V1    | Core engine: parse + render + CLI               | ✅ Done     |
 | V2    | Images + double-column output; Markdown parser  | ✅ Done     |
 | V3    | Native LaTeX → OMML insertion                   | 🚧 In progress (core + advanced common subset) |
-| V4    | ML-based template layout understanding          | 📋 Future  |
+
 
 ## Star History
 <a href="https://www.star-history.com/?repos=Gluxggg%2FOpenThesis&type=date&legend=bottom-right">
