@@ -23,10 +23,23 @@ export type DocumentType = 'thesis' | 'journal' | 'official';
 export interface DocumentTemplate {
   meta: TemplateMeta;
   page: PageSettings;
+  /**
+   * Every section geometry found, in document order (cover, body, appendix…).
+   * `page` is the last one — the body — which is what a single-section render
+   * targets. Present only when the document actually declares sections.
+   */
+  pageSections?: PageSettings[];
   styles: Record<string, ParagraphStyle>;
   styleRoles: Record<string, StyleRole>;
   styleInheritance?: Record<string, string>;
   documentType?: DocumentType;
+  /**
+   * Non-fatal problems found while parsing — a style based on a style the
+   * template does not define, a template that declares no formatting at all,
+   * or several sections where only one can be rendered. Callers should surface
+   * these rather than letting a template silently produce wrong output.
+   */
+  warnings?: string[];
 }
 
 export interface TemplateMeta {
@@ -377,4 +390,11 @@ export interface LegacyDocumentJSON {
 }
 
 export type OpenThesisDocument = ThesisDocument | JournalArticle | OfficialDocument;
+
+// ════════════════════════════════════════════════════════════
+// ── VALIDATION ─────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+
+export { validateDocument, validateLegacyDocument, assertValidDocument, formatIssues } from './validate.js';
+export type { ValidationIssue } from './validate.js';
 

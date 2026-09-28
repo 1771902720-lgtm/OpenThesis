@@ -55,8 +55,9 @@ export async function parseTemplate(
 
   // 3. Parse document.xml for page settings
   const docXml = await zip.file('word/document.xml')?.async('string');
-  const pageSettings = docXml
-    ? extractPageSettings(parser.parse(docXml))
+  const pageSections = docXml ? extractPageSections(parser.parse(docXml)) : [];
+  const pageSettings = pageSections.length > 0
+    ? pageSections[pageSections.length - 1]
     : getDefaultPageSettings();
 
   // 4. Map styles to semantic roles (heuristic detection)
@@ -78,13 +79,71 @@ export async function parseTemplate(
     styles[name] = rawToParagraphStyle(raw);
   }
 
+  const warnings = buildWarnings(rawStyles, resolvedStyles, pageSections);
+
   return {
     meta,
     page: pageSettings,
+    ...(pageSections.length > 0 ? { pageSections } : {}),
     styles,
     styleRoles,
     styleInheritance: buildInheritanceMap(rawStyles),
+    ...(warnings.length > 0 ? { warnings } : {}),
   };
+}
+
+/**
+ * Non-fatal problems worth telling the caller about.
+ *
+ * These exist because a template that carries no formatting used to parse
+ * "successfully" into a DocumentTemplate whose every style was identical, and
+ * the first symptom was a document with headings that looked like body text.
+ */
+function buildWarnings(
+  rawStyles: Record<string, RawStyle>,
+  resolvedStyles: Record<string, RawStyle>,
+  pageSections: PageSettings[],
+): string[] {
+  const warnings: string[] = [];
+  const styleIds = Object.keys(resolvedStyles);
+
+  if (styleIds.length === 0) {
+    warnings.push('styles.xml defines no paragraph styles; every block will use the built-in defaults.');
+    return warnings;
+  }
+
+  const missingParents = new Set<string>();
+  for (const style of Object.values(rawStyles)) {
+    if (style.basedOn && !rawStyles[style.basedOn]) {
+      missingParents.add(`${style.styleId} → ${style.basedOn}`);
+    }
+  }
+  if (missingParents.size > 0) {
+    const shown = [...missingParents].slice(0, 5).join(', ');
+    const more = missingParents.size > 5 ? ` (+${missingParents.size - 5} more)` : '';
+    warnings.push(`styles inherit from styles this template does not define: ${shown}${more}.`);
+  }
+
+  const declaresFormatting = styleIds.some(id => {
+    const style = resolvedStyles[id];
+    return style.rPr !== undefined || style.pPr !== undefined;
+  });
+  if (!declaresFormatting) {
+    warnings.push(
+      'No style declares any font or paragraph formatting, so this template carries no typography; '
+      + 'every block will fall back to the built-in defaults. Re-check the source .docx, or author the '
+      + 'styles explicitly.',
+    );
+  }
+
+  if (pageSections.length > 1) {
+    warnings.push(
+      `The document declares ${pageSections.length} sections; only the last is used for page geometry, `
+      + 'so cover or appendix page setups are not reproduced.',
+    );
+  }
+
+  return warnings;
 }
 
 // ── Style Extraction ──────────────────────────────────────
@@ -427,14 +486,34 @@ function mapAlignment(align?: string): ParagraphFormatting['alignment'] | undefi
 
 // ── Page Settings Extraction ───────────────────────────────
 
-function extractPageSettings(parsed: any): PageSettings {
+/**
+ * Every section geometry in the document, in document order.
+ *
+ * In OOXML every section but the last keeps its properties in
+ * `w:p/w:pPr/w:sectPr`; the final section's properties are a direct child of
+ * `w:body`. Reading only the body-level element meant a template with a
+ * distinct cover or a landscape appendix reported a single geometry.
+ */
+function extractPageSections(parsed: any): PageSettings[] {
   const body = parsed?.['w:document']?.['w:body'];
-  if (!body) return getDefaultPageSettings();
+  if (!body) return [];
 
-  // Look for section properties (sectPr) — usually last child of body
-  const sectPr = body['w:sectPr']?.[0] || body['w:sectPr'];
-  if (!sectPr) return getDefaultPageSettings();
+  const sections: PageSettings[] = [];
 
+  const paragraphs = body['w:p'];
+  for (const paragraph of Array.isArray(paragraphs) ? paragraphs : paragraphs ? [paragraphs] : []) {
+    const pPr = firstElement(paragraph?.['w:pPr']);
+    const sectPr = firstElement(pPr?.['w:sectPr']);
+    if (sectPr) sections.push(sectPrToPageSettings(sectPr));
+  }
+
+  const bodySectPr = firstElement(body['w:sectPr']);
+  if (bodySectPr) sections.push(sectPrToPageSettings(bodySectPr));
+
+  return sections;
+}
+
+function sectPrToPageSettings(sectPr: any): PageSettings {
   const pgSz = sectPr['w:pgSz'];
   const pgMar = sectPr['w:pgMar'];
 
@@ -492,6 +571,7 @@ function getDefaultPageSettings(): PageSettings {
     width: 11906,   // A4
     height: 16838,
     margins: { top: 1440, bottom: 1440, left: 1800, right: 1800 },
+    columns: 1,
   };
 }
 

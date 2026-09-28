@@ -17,6 +17,22 @@ test('help exits successfully', () => {
   assert.match(result.stdout, /OpenThesis/);
 });
 
+test('accepts the documented `thesis <command>` prefix', () => {
+  // The README and help text document `thesis build …` (the bin's name), while
+  // the agent skill invokes the CLI directly. Both must work.
+  const prefixed = run(['thesis', '--help']);
+  assert.equal(prefixed.status, 0);
+  assert.match(prefixed.stdout, /OpenThesis/);
+
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'paper.md');
+  const output = join(dir, 'paper.json');
+  writeFileSync(input, '# Title\n\nBody.');
+  const result = run(['thesis', 'import', input, '-o', output]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(readFileSync(output, 'utf8')).type, 'thesis');
+});
+
 test('parse rejects non-DOCX input before it can be overwritten', () => {
   const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
   const input = join(dir, 'template.txt');

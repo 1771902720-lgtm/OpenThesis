@@ -14,9 +14,14 @@ import { resolve, dirname, extname, basename } from 'path';
 import { parseTemplate } from '@openthesis/template-parser';
 import { parseMarkdown } from '@openthesis/markdown-parser';
 import { renderLegacy, createUSTBTemplate, renderDocument } from '@openthesis/docx-renderer';
+import { validateDocument, validateLegacyDocument, formatIssues } from '@openthesis/document-schema';
 import type { DocumentTemplate, DocumentType, LegacyDocumentJSON, ThesisDocument, JournalArticle, OfficialDocument } from '@openthesis/document-schema';
 
-const args = process.argv.slice(2);
+// The help text and CLAUDE.md document `thesis build …` (the bin is named
+// `thesis`), while the agent skill invokes the CLI directly as `build …`.
+// Both spellings are accepted so the documented form actually works.
+const rawArgs = process.argv.slice(2);
+const args = rawArgs[0] === 'thesis' ? rawArgs.slice(1) : rawArgs;
 const command = args[0];
 
 async function main() {
@@ -128,6 +133,13 @@ async function cmdParse(args: string[]) {
         : '—';
       console.log(`     ${styleId} → ${role} (${fontInfo})`);
     }
+
+    if (template.warnings && template.warnings.length > 0) {
+      console.log(`\n   ⚠️  ${template.warnings.length} warning${template.warnings.length === 1 ? '' : 's'}:`);
+      for (const warning of template.warnings) {
+        console.log(`     - ${warning}`);
+      }
+    }
   } catch (err: unknown) {
     console.error(`\n❌ Failed to parse template: ${errorMessage(err)}`);
     process.exit(1);
@@ -178,6 +190,12 @@ async function cmdBuild(args: string[]) {
     let template: DocumentTemplate;
     if (templatePath) {
       template = JSON.parse(readTextFile(templatePath));
+      // A parsed template carries the problems found while parsing it.
+      if (template.warnings && template.warnings.length > 0) {
+        for (const warning of template.warnings) {
+          console.warn(`  ⚠️  Template: ${warning}`);
+        }
+      }
     } else {
       console.log('  Using built-in USTB template...');
       template = createUSTBTemplate();
@@ -187,6 +205,16 @@ async function cmdBuild(args: string[]) {
     if (isMarkdown) console.log(`  Markdown imported as: ${contentJson.type}`);
     if (contentJson && typeof contentJson === 'object' && 'type' in contentJson) {
       console.log(`  Structured document detected: ${contentJson.type}`);
+
+      // Validate before rendering: the renderer's own checks are few, and the
+      // errors it can raise name neither the offending block nor its path.
+      const issues = validateDocument(contentJson);
+      if (issues.length > 0) {
+        console.error(`\n❌ Invalid document content — ${issues.length} problem${issues.length === 1 ? '' : 's'}:`);
+        console.error(formatIssues(issues));
+        process.exit(1);
+      }
+
       docType = contentJson.type === 'thesis' ? 'thesis'
         : contentJson.type === 'journal' ? 'journal article'
         : 'official document';
@@ -199,6 +227,14 @@ async function cmdBuild(args: string[]) {
       });
     } else {
       console.log('  Legacy document format detected, falling back to renderLegacy...');
+
+      const legacyIssues = validateLegacyDocument(contentJson);
+      if (legacyIssues.length > 0) {
+        console.error(`\n❌ Invalid document content — ${legacyIssues.length} problem${legacyIssues.length === 1 ? '' : 's'}:`);
+        console.error(formatIssues(legacyIssues));
+        process.exit(1);
+      }
+
       docType = contentJson.title?.includes('期刊') ? 'journal article'
         : contentJson.title?.includes('公文') || contentJson.title?.includes('通知') ? 'official document'
         : 'document';

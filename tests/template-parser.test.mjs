@@ -112,3 +112,58 @@ test('omits properties a style does not declare', async () => {
   // Nothing is invented for absent spacing either.
   assert.equal(template.styles['1'].paragraph.spaceBefore, undefined);
 });
+
+/** Build a template whose sections and style quality we control. */
+async function createTemplateWith({ styles, body }) {
+  const zip = new JSZip();
+  zip.file('word/styles.xml', `<?xml version="1.0"?>
+    <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${styles}</w:styles>`);
+  zip.file('word/document.xml', `<?xml version="1.0"?>
+    <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+const BODY_SECTION = '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:bottom="1440" w:left="1797" w:right="1797"/></w:sectPr>';
+
+test('reads section properties from paragraph-level section breaks', async () => {
+  // A cover section (landscape) followed by the body section. Only the
+  // body-level sectPr used to be read, so the cover geometry vanished.
+  const buffer = await createTemplateWith({
+    styles: '<w:style w:type="paragraph" w:default="1" w:styleId="a"><w:name w:val="Normal"/><w:rPr><w:sz w:val="24"/></w:rPr></w:style>',
+    body: `<w:p><w:pPr><w:sectPr><w:pgSz w:w="16838" w:h="11906"/><w:pgMar w:top="1000" w:bottom="1000" w:left="1000" w:right="1000"/></w:sectPr></w:pPr></w:p>${BODY_SECTION}`,
+  });
+  const template = await parseTemplate(buffer, { documentType: 'thesis' });
+
+  assert.equal(template.pageSections.length, 2);
+  // Document order: cover first, body last, and `page` is the body.
+  assert.equal(template.pageSections[0].width, 16838, 'cover section is landscape');
+  assert.equal(template.page.width, 11906);
+  assert.equal(template.page.margins.left, 1797);
+  assert.ok(template.warnings.some(w => /declares 2 sections/.test(w)));
+});
+
+test('warns when a template carries no formatting at all', async () => {
+  // This is exactly the shape that made headings render as body text.
+  const buffer = await createTemplateWith({
+    styles: '<w:style w:type="paragraph" w:default="1" w:styleId="a"><w:name w:val="Normal"/></w:style>',
+    body: BODY_SECTION,
+  });
+  const template = await parseTemplate(buffer, { documentType: 'thesis' });
+  assert.ok(template.warnings.some(w => /carries no typography/.test(w)), JSON.stringify(template.warnings));
+});
+
+test('warns when a style inherits from an undefined style', async () => {
+  const buffer = await createTemplateWith({
+    styles: '<w:style w:type="paragraph" w:styleId="1"><w:name w:val="heading 1"/><w:basedOn w:val="Missing"/><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>',
+    body: BODY_SECTION,
+  });
+  const template = await parseTemplate(buffer, { documentType: 'thesis' });
+  assert.ok(template.warnings.some(w => /does not define/.test(w)), JSON.stringify(template.warnings));
+});
+
+test('stays quiet about a template that does declare formatting', async () => {
+  const template = await parseTemplate(await createChineseTemplate(), { documentType: 'thesis' });
+  assert.equal(template.warnings, undefined);
+  assert.equal(template.pageSections.length, 1);
+  assert.equal(template.page.columns, 1);
+});
