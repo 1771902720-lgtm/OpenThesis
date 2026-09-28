@@ -5,7 +5,7 @@
     "sourceFile": "《北京科技大学硕士学位论文模板》.docx",
     "name": "北京科技大学硕士学位论文模板",
     "parserVersion": "0.2.0",
-    "parsedAt": "2026-09-28T13:23:46.203Z"
+    "parsedAt": "2026-09-28T13:48:44.298Z"
   },
   "page": {
     "width": 11906,
@@ -18,6 +18,7 @@
     },
     "headerDistance": 851,
     "footerDistance": 850,
+    "gutter": 567,
     "columns": 1,
     "columnGutter": 0
   },
@@ -33,6 +34,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 851,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -47,6 +49,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -61,6 +64,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -75,6 +79,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -89,6 +94,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -103,6 +109,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -117,6 +124,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -131,6 +139,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -145,6 +154,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 851,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 720
     },
@@ -159,6 +169,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     },
@@ -173,6 +184,7 @@
       },
       "headerDistance": 851,
       "footerDistance": 850,
+      "gutter": 567,
       "columns": 1,
       "columnGutter": 0
     }
@@ -852,6 +864,7 @@
       "paragraph": {
         "alignment": "justified",
         "firstLineIndent": 480,
+        "hangingIndent": 240,
         "leftIndent": 0,
         "spaceBefore": 10,
         "spaceAfter": 10
@@ -987,17 +1000,19 @@
     "a": "paragraph",
     "u1": "heading1",
     "a6": "paragraph",
-    "u5": "heading1",
+    "u5": "section_heading",
     "u2": "heading2",
     "u3": "heading3",
     "b1": "heading1",
     "b2": "heading2",
     "af9": "heading1",
     "afa": "heading1",
-    "u": "heading1",
+    "u": "section_heading",
+    "u8": "section_heading",
     "ua": "paragraph",
     "u4": "figure_caption",
-    "ub": "figure_caption",
+    "ub": "table_caption",
+    "u0": "reference_item",
     "a3": "paragraph",
     "a4": "paragraph",
     "TOC3": "paragraph",
@@ -1021,9 +1036,7 @@
     "afc": "paragraph",
     "P4": "paragraph",
     "u7": "paragraph",
-    "u8": "paragraph",
     "u9": "paragraph",
-    "u0": "paragraph",
     "TOC10": "paragraph",
     "afe": "paragraph",
     "aff": "paragraph"
@@ -1033,7 +1046,10 @@
     "heading2": "u2",
     "heading3": "u3",
     "paragraph": "ua",
-    "figure_caption": "ub"
+    "section_heading": "u5",
+    "figure_caption": "u4",
+    "table_caption": "ub",
+    "reference_item": "u0"
   },
   "styleInheritance": {
     "1": "u1",

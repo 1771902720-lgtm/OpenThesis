@@ -207,7 +207,7 @@ interface RawStyle {
 
 interface RawParagraphProps {
   alignment?: string;
-  indent?: { firstLine?: number; left?: number; right?: number };
+  indent?: { firstLine?: number; left?: number; right?: number; hanging?: number };
   spacing?: { before?: number; after?: number; line?: number; lineRule?: string };
   outlineLvl?: number;
   keepNext?: boolean;
@@ -320,6 +320,11 @@ function extractParagraphProps(pPr: any, runSize?: number): RawParagraphProps | 
 
     if (!isNaN(rightChars)) props.indent.right = charsToTwips(rightChars);
     else if (!isNaN(right)) props.indent.right = right;
+
+    // A hanging indent is separate from a first-line indent and was dropped
+    // entirely; the guide asks for it on every heading level.
+    const hanging = parseInt(ind['@_w:hanging']);
+    if (!isNaN(hanging)) props.indent.hanging = hanging;
   }
 
   // Spacing
@@ -550,6 +555,7 @@ function rawToParagraphStyle(raw: RawStyle): ParagraphStyle {
     paragraph: definedOnly({
       alignment: mapAlignment(raw.pPr?.alignment),
       firstLineIndent: raw.pPr?.indent?.firstLine,
+      hangingIndent: raw.pPr?.indent?.hanging,
       leftIndent: raw.pPr?.indent?.left,
       rightIndent: raw.pPr?.indent?.right,
       spaceBefore: raw.pPr?.spacing?.before,
@@ -643,11 +649,15 @@ function sectPrToPageSettings(sectPr: any): PageSettings {
   // Extract header/footer distances from pgMar attributes
   let headerDistance: number | undefined;
   let footerDistance: number | undefined;
+  let gutter: number | undefined;
   if (pgMar) {
     const hd = parseInt(pgMar['@_w:header']);
     if (!isNaN(hd)) headerDistance = hd;
     const fd = parseInt(pgMar['@_w:footer']);
     if (!isNaN(fd)) footerDistance = fd;
+    // The binding edge: the guide asks for 1 cm on the left.
+    const gu = parseInt(pgMar['@_w:gutter']);
+    if (!isNaN(gu)) gutter = gu;
   }
 
   const cols = sectPr['w:cols'];
@@ -660,7 +670,7 @@ function sectPrToPageSettings(sectPr: any): PageSettings {
     if (!isNaN(space)) columnGutter = space;
   }
 
-  return { width, height, margins, headerDistance, footerDistance, columns, columnGutter };
+  return { width, height, margins, headerDistance, footerDistance, gutter, columns, columnGutter };
 }
 
 function getDefaultPageSettings(): PageSettings {
@@ -708,8 +718,17 @@ function detectStyleRoles(
     { regex: /^(标题\s*4|Heading\s*4|h4|标题4|u?4级标题)$/i, role: 'heading4' },
     // Body text
     { regex: /^(正文|u正文|Normal|Body|body\s*text|正文文本|普通)$/i, role: 'paragraph' },
-    // Figure and table captions share one role: the renderer styles both from it.
-    { regex: /^(u?图标题|u?表标题|图题|表题|Figure\s*Caption|Table\s*Caption)$/i, role: 'figure_caption' },
+    // Figure and table captions are separate roles: the guide spaces a table
+    // caption (段前1行) differently from a figure caption (段前0.1行).
+    { regex: /^(u?图标题|图题|Figure\s*Caption)$/i, role: 'figure_caption' },
+    { regex: /^(u?表标题|表题|Table\s*Caption)$/i, role: 'table_caption' },
+    // Headings of the front/back matter (摘要, 目录, 序, 附录, 致谢, 参考文献). The
+    // guide sets these apart from a chapter heading — 段后16.5磅 and 2.41倍行距
+    // against 段后17磅 and 1.3倍 — and the USTB template has a style for them
+    // (`u标题`, `u附录标题`) that used to be read as just another heading1.
+    { regex: /^(u?标题|u?附录标题|.*标题\s*不入目录|摘要|目录|致谢|参考文献|序)$/i, role: 'section_heading' },
+    // Reference entries under that heading.
+    { regex: /^u?参考文献条目.*$/i, role: 'reference_item' },
     // Cover title
     { regex: /^(封面|Cover|Title|论文题目|题目)$/i, role: 'centered_text' },
     // Equation styles — MathType emits "MT Converted Equation", WPS emits "公式".

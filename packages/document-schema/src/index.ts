@@ -73,6 +73,11 @@ export interface PageSettings {
   };
   headerDistance?: number;
   footerDistance?: number;
+  /**
+   * Twips reserved on the binding edge (`w:pgMar/@w:gutter`). The university
+   * guide asks for 1 cm on the left.
+   */
+  gutter?: number;
   columns?: number;
   columnGutter?: number;
 }
@@ -116,6 +121,12 @@ export interface ParagraphFormatting {
   firstLineIndent?: number;
   leftIndent?: number;
   rightIndent?: number;
+  /**
+   * Twips of hanging indent: the first line starts this far left of the rest.
+   * The guide asks for it on every heading level (0.75 / 1 / 1.25 cm), which is
+   * a different property from `firstLineIndent` and was being thrown away.
+   */
+  hangingIndent?: number;
   spaceBefore?: number;
   spaceAfter?: number;
   outlineLevel?: number;
@@ -140,14 +151,27 @@ export type BlockType =
 export interface BaseBlock { type: BlockType; id?: string; }
 
 /**
- * Semantic style roles. Every content block type doubles as a role, plus two
- * roles that have no block of their own: table headers and figure captions.
+ * Semantic style roles. Every content block type doubles as a role, plus the
+ * parts of a document that carry no block of their own: table headers, figure
+ * and table captions, the headings of the front/back-matter sections (摘要,
+ * 目录, 附录, 致谢, 参考文献 — the guide sets these apart from a chapter heading),
+ * and the reference entries under one.
  */
-export type StyleRole = BlockType | 'table_header' | 'figure_caption';
+export type StyleRole = BlockType
+  | 'table_header' | 'figure_caption' | 'table_caption'
+  | 'section_heading' | 'reference_item';
 
 export interface HeadingBlock extends BaseBlock {
   type: 'heading1' | 'heading2' | 'heading3' | 'heading4';
   text: string; number?: string;
+  /**
+   * Render this heading with another role's style.
+   *
+   * The guide sets the headings of the front and back matter (摘要, 目录, 附录,
+   * 致谢, 参考文献) apart from a chapter heading — 段后16.5磅 and 2.41倍行距
+   * against 段后17磅 and 1.3倍 — so a level-1 heading is not always a chapter.
+   */
+  styleRole?: StyleRole;
 }
 
 export interface ParagraphBlock extends BaseBlock {

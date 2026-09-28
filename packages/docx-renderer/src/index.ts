@@ -271,6 +271,20 @@ function lineStyle(style: ParagraphStyle, fallbackLine?: number): { line?: numbe
   return style.lineSpacingRule ? { line, lineRule: style.lineSpacingRule } : { line };
 }
 
+/**
+ * The paragraph indent, as OOXML wants it.
+ *
+ * A hanging indent and a first-line indent are mutually exclusive, so whichever
+ * the template declares wins. Headings in the guide carry a hanging indent
+ * (0.75 / 1 / 1.25 cm), which used to be dropped on the floor.
+ */
+function indentOf(style: ParagraphStyle): { hanging?: number; left?: number; firstLine?: number } | undefined {
+  const { hangingIndent, leftIndent, firstLineIndent } = style.paragraph;
+  if (hangingIndent) return { hanging: hangingIndent, ...(leftIndent ? { left: leftIndent } : {}) };
+  if (firstLineIndent) return { firstLine: firstLineIndent };
+  return undefined;
+}
+
 // ── Block Renderers ───────────────────────────────────────
 
 function renderHeading(
@@ -278,7 +292,8 @@ function renderHeading(
   block: HeadingBlock,
   docType?: string,
 ): Paragraph {
-  const style = resolveStyle(template, block.type, docType);
+  // `styleRole` lets a front/back-matter heading use its own format.
+  const style = resolveStyle(template, block.styleRole ?? block.type, docType);
   const numberPrefix = block.number ? `${block.number}  ` : '';
   return new Paragraph({
     children: [
@@ -309,8 +324,9 @@ function renderParagraph(
   template: DocumentTemplate,
   block: ParagraphBlock,
   docType?: string,
+  role: StyleRole = block.type,
 ): Paragraph {
-  const style = resolveStyle(template, block.type, docType);
+  const style = resolveStyle(template, role, docType);
   return new Paragraph({
     children: [
       new TextRun({
@@ -328,9 +344,7 @@ function renderParagraph(
       }),
     ],
     alignment: mapAlignment(style.paragraph.alignment),
-    indent: style.paragraph.firstLineIndent
-      ? { firstLine: style.paragraph.firstLineIndent }
-      : undefined,
+    indent: indentOf(style),
     spacing: {
       before: style.paragraph.spaceBefore ?? 12,
       after: style.paragraph.spaceAfter ?? 12,
@@ -658,7 +672,9 @@ function renderTable(
 
   // Table typography comes from the template like every other block, so a
   // template that styles its tables is no longer silently ignored.
-  const captionStyle = resolveStyle(template, 'figure_caption', docType);
+  // A table caption is spaced differently from a figure caption: the guide asks
+  // for 段前1行 on a table and 段前0.1行 on a figure.
+  const captionStyle = resolveStyle(template, 'table_caption', docType);
   const headerStyle = resolveStyle(template, 'table_header', docType);
   const bodyStyle = resolveStyle(template, 'table', docType);
 
@@ -1254,12 +1270,12 @@ function renderThesisDocument(
   if (doc.backMatter) {
     if (doc.backMatter.references && doc.backMatter.references.length > 0) {
       children.push(
-        renderHeading(template, { type: 'heading1', text: '参考文献' }),
+        renderHeading(template, { type: 'heading1', text: '参考文献', styleRole: 'section_heading' }),
         ...doc.backMatter.references.map(ref =>
           renderParagraph(template, {
             type: 'paragraph_no_indent',
             text: `[${ref.id}] ${ref.text}`,
-          }),
+          }, undefined, 'reference_item'),
         ),
       );
     }
@@ -1675,6 +1691,8 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
         bottom: template.page.margins.bottom,
         left: template.page.margins.left,
         right: template.page.margins.right,
+        // The binding edge: the guide asks for 1 cm on the left.
+        ...(template.page.gutter ? { gutter: template.page.gutter } : {}),
       },
     },
     ...(template.page.columns && template.page.columns > 1
