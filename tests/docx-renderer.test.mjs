@@ -476,3 +476,23 @@ test('styles the cover from the template, one tier at a time', async () => {
   assert.match(meta, /<w:sz w:val="21"\/>/);        // 五号
   assert.doesNotMatch(meta, /<w:b\/>/);
 });
+
+test('emits a real TOC field for a 目录 section', async () => {
+  // A table of contents is a field, not text: Word fills in the entries and
+  // their page numbers when the field is updated. No generator can compute page
+  // numbers, so it emits the field rather than faking a list.
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'TOC' }, cover: [],
+      sections: [
+        { id: 'toc', type: 'toc', title: '目录', content: [] },
+        { id: 'c1', type: 'chapter', title: '第一章 绪论', content: [{ type: 'paragraph', text: '正文。' }] },
+      ],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+  assert.match(xml, /<w:instrText[^>]*>TOC \\h \\o "1-3"<\/w:instrText>/);
+  assert.match(xml, /目录/);
+  assert.match(xml, /第一章 绪论/);
+});

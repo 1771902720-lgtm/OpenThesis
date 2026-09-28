@@ -15,6 +15,7 @@ import {
   Math as DocxMath, MathRun, MathFraction, MathRadical, MathSuperScript,
   MathSubScript, MathSubSuperScript, MathSum, MathIntegral,
   MathFunction, MathLimitLower, MathLimitUpper, BuilderElement,
+  TableOfContents,
 } from 'docx';
 import type { ISectionPropertiesOptions, MathComponent, INumberingOptions } from 'docx';
 import type {
@@ -1268,7 +1269,21 @@ function renderThesisDocument(
   }
 
   if (doc.sections && doc.sections.length > 0) {
-    children.push(...processBlocks(flattenSections(doc.sections), template, contentDir, undefined, state));
+    // A 目录 is a field, not text. Word fills the entries and their page numbers
+    // when the field is updated; no generator can compute page numbers, so the
+    // honest output is the field plus a note in the docs that Word must update
+    // it. `TableOfContents` is a valid document child the `Paragraph | Table`
+    // alias predates, hence the cast at this one place.
+    const tocSections = doc.sections.filter(section => section.type === 'toc');
+    for (const section of tocSections) {
+      children.push(renderHeading(template, { type: 'heading1', text: section.title, styleRole: 'section_heading' }));
+      children.push(
+        new TableOfContents(section.title, { hyperlink: true, headingStyleRange: '1-3' }) as unknown as Paragraph,
+      );
+    }
+
+    const bodySections = doc.sections.filter(section => section.type !== 'toc');
+    children.push(...processBlocks(flattenSections(bodySections), template, contentDir, undefined, state));
   }
 
   // Back Matter
