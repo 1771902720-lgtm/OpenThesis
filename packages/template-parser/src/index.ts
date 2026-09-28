@@ -17,6 +17,32 @@ import type {
   BlockType,
 } from '@openthesis/document-schema';
 
+const WORDPROCESSINGML_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+
+/**
+ * Rewrite the document's own WordprocessingML prefix to `w:`.
+ *
+ * Nothing in OOXML requires the prefix to be `w` — it is declared per document.
+ * Every lookup in this file is written against the literal `w:`, so a
+ * styles.xml binding the namespace to another prefix parsed to zero styles and
+ * the template came out empty. The binding is declared on the root element, so
+ * it is read from there and normalised before parsing.
+ */
+function normalizeWordPrefix(xml: string): string {
+  const declaration = /xmlns:([\w.-]+)\s*=\s*["']([^"']*)["']/g;
+  let prefix: string | undefined;
+  for (let match = declaration.exec(xml); match; match = declaration.exec(xml)) {
+    if (match[2] === WORDPROCESSINGML_NAMESPACE) { prefix = match[1]; break; }
+  }
+  if (!prefix || prefix === 'w') return xml;
+
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return xml
+    .replace(new RegExp(`<${escaped}:`, 'g'), '<w:')
+    .replace(new RegExp(`</${escaped}:`, 'g'), '</w:')
+    .replace(new RegExp(`(\\s)${escaped}:`, 'g'), '$1w:');
+}
+
 // Create XML parser with namespace-aware settings
 function createParser(): XMLParser {
   return new XMLParser({
@@ -48,7 +74,7 @@ export async function parseTemplate(
   const stylesXml = await zip.file('word/styles.xml')?.async('string');
   if (!stylesXml) throw new Error('No styles.xml found in template — is this a valid .docx?');
 
-  const stylesParsed = parser.parse(stylesXml);
+  const stylesParsed = parser.parse(normalizeWordPrefix(stylesXml));
   const rawStyles = extractRawStyles(stylesParsed);
 
   // 2. Resolve style inheritance chain. A `basedOn` loop is malformed; break it
@@ -58,7 +84,7 @@ export async function parseTemplate(
 
   // 3. Parse document.xml for page settings
   const docXml = await zip.file('word/document.xml')?.async('string');
-  const pageSections = docXml ? extractPageSections(parser.parse(docXml)) : [];
+  const pageSections = docXml ? extractPageSections(parser.parse(normalizeWordPrefix(docXml))) : [];
   const pageSettings = pageSections.length > 0
     ? pageSections[pageSections.length - 1]
     : getDefaultPageSettings();

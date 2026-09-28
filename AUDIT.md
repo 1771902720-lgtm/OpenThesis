@@ -100,8 +100,9 @@ Status: **Fixed** = changed in this branch with a regression test.
 
 ### P2 — correctness and maintainability
 
-Status: **Fixed** = changed on this branch with a regression test; **Partial** = the
-reported symptom is addressed but a related gap remains; **Open** = unchanged.
+Status: **Fixed** = changed on this branch with a regression test. Every finding
+in the table below is now closed; the notes record what each fix does. §6 lists
+what remains outside this table.
 
 | # | Finding | Status |
 |---|---|---|
@@ -112,7 +113,7 @@ reported symptom is addressed but a related gap remains; **Open** = unchanged.
 | P2-5 | `x^{a}^{b}` silently overwrites the first superscript. | Fixed — the first wins. |
 | P2-6 | Escaped `&` after a row break is mis-detected (`\\&`), merging two cells into one. | Fixed — a character is escaped by an *odd* run of backslashes, so `\\&` is a row break plus a separator and `\&` stays literal. |
 | P2-7 | Only the body-level `w:sectPr` is read; paragraph-level section breaks are ignored. | Fixed — all sections are collected into `pageSections`; only the last is rendered, and that is now warned about. |
-| P2-8 | `removeNSPrefix: false` hardcodes the `w:` prefix; a styles.xml using another prefix yields a zero-style template with no error. | Partial — a zero-style template now warns, but a non-`w:` prefix still parses to nothing. |
+| P2-8 | `removeNSPrefix: false` hardcodes the `w:` prefix; a styles.xml using another prefix yields a zero-style template with no error. | Fixed — the prefix bound to the WordprocessingML namespace is read from the document's own declaration and normalised to `w:` before parsing, so an `x:styles` template parses like any other. A template that still declares nothing keeps its warning. |
 | P2-9 | `basedOn` cycles are accepted and produce order-dependent merges. | Fixed — a loop is cut at its earliest-declared member, so the merge no longer depends on the entry point, and the loop is reported as a warning. A `basedOn` pointing at a missing style still warns. |
 | P2-10 | `lineSpacing` stores the raw `w:line` and drops `lineRule`, so `auto` (240ths) and `exact` (twips) are conflated. | Fixed — `ParagraphStyle.lineSpacingRule` carries the rule from `w:lineRule` through to the rendered `w:spacing`. |
 | P2-11 | Markdown list nesting is `floor(indent / 2)`, so standard 2- and 4-space nesting is mis-levelled. | Fixed — level comes from the marker's column. |
@@ -149,7 +150,7 @@ reported symptom is addressed but a related gap remains; **Open** = unchanged.
 | `markdown-parser` | Emphasis requires real delimiters (no intraword `_`, no space-flanked `*`); only tag-shaped `<…>` is stripped and autolinks keep their target. Heading closing-hash requires a space. Front-matter block sequences. Quote-aware list splitting. Single-column tables. Extended fence info strings. List level derived from the marker column. |
 | `assets/ustb-thesis-template.json` | The 72 entries that were byte-identical to the old invented defaults were stripped to empty objects. **This file still needs regenerating from the original `.docx`** (`thesis parse <template.docx>`) to recover any formatting the old parser dropped — see §5. |
 
-Test count: **29 → 95**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
+Test count: **29 → 96**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
 
 ---
 
@@ -196,14 +197,11 @@ Items 3–5 of the original list are done on this branch. What remains:
 1. **Regenerate the USTB template JSON (§5).** Still the highest-value single action.
 2. **Add real university and journal `.docx` files under `tests/fixtures/`** — now
    unblocked by the `.gitignore` change — and assert parsed geometry and roles.
-3. **Non-`w:` namespace prefixes** (P2-8): the parser still keys on the literal
-   `w:` prefix, so a template using another prefix for the same namespace parses
-   to zero styles (it does now warn). This is the last P2 finding still open.
-4. **Emit real section breaks** for templates that declare more than one section
+3. **Emit real section breaks** for templates that declare more than one section
    geometry — currently all sections are read but only the last is rendered, and
    the template now warns about it.
-5. **Inline formatting** (P2-12): the two unused types were removed. Modelling
+4. **Inline formatting** (P2-12): the two unused types were removed. Modelling
    rich runs means new schema, `markdown-parser` emphasis handling, and
    `renderParagraph` splitting `text` at range boundaries.
-6. **Unsupported LaTeX diagnostics**: surface unsupported syntax on the rendered
+5. **Unsupported LaTeX diagnostics**: surface unsupported syntax on the rendered
    document instead of only through `convertLatexToOmml`.

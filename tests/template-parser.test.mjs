@@ -207,3 +207,26 @@ test('stays quiet about a template that does declare formatting', async () => {
   assert.equal(template.pageSections.length, 1);
   assert.equal(template.page.columns, 1);
 });
+
+test('reads a template that binds WordprocessingML to another prefix', async () => {
+  // The prefix is declared per document; nothing requires it to be `w`. Keying
+  // on the literal `w:` parsed such a template to zero styles.
+  const zip = new JSZip();
+  zip.file('word/styles.xml', `<?xml version="1.0"?>
+    <x:styles xmlns:x="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+      <x:style x:type="paragraph" x:default="1" x:styleId="a"><x:name x:val="Normal"/>
+        <x:pPr><x:spacing x:line="360" x:lineRule="exact"/></x:pPr>
+        <x:rPr><x:sz x:val="24"/><x:rFonts x:eastAsia="宋体"/></x:rPr></x:style>
+    </x:styles>`);
+  zip.file('word/document.xml', `<?xml version="1.0"?>
+    <x:document xmlns:x="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+      <x:body>${BODY_SECTION.replace(/w:/g, 'x:')}</x:body></x:document>`);
+
+  const template = await parseTemplate(await zip.generateAsync({ type: 'nodebuffer' }), { documentType: 'thesis' });
+
+  assert.equal(template.styles.a.font.size, 24);
+  assert.equal(template.styles.a.font.eastAsia, '宋体');
+  assert.equal(template.styles.a.lineSpacing, 360);
+  assert.equal(template.styles.a.lineSpacingRule, 'exact');
+  assert.equal(template.page.width, 11906);
+});
