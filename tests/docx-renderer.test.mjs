@@ -425,10 +425,14 @@ test('applies the guide formatting the built-in template carries', async () => {
       backMatter: { references: [{ id: '1', text: '一条参考文献.' }] },
     },
   });
-  const { xml } = await documentXml(buffer);
+  const { zip, xml } = await documentXml(buffer);
 
-  // 对称页边距 + 装订线 1cm (567 twips) for a bound thesis.
-  assert.match(xml, /<w:mirrorMargins\/>/);
+  // 对称页边距 + 装订线 1cm (567 twips) for a bound thesis. Mirror margins are a
+  // document setting (settings.xml), not a section property — writing it into
+  // w:sectPr produced a part Word ignores.
+  const settings = await zip.file('word/settings.xml').async('string');
+  assert.match(settings, /<w:mirrorMargins\/>/);
+  assert.doesNotMatch(xml, /w:mirrorMargins/);
   assert.match(xml, /w:gutter="567"/);
   // A section heading is not a chapter heading: 段前17磅/段后16.5磅/2.41倍行距(579),
   // where heading1 is 340/340 and 1.3倍(312).

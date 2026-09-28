@@ -1795,14 +1795,23 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
  * untouched.
  */
 async function addMirrorMargins(buffer: Buffer): Promise<Buffer> {
+  // `w:mirrorMargins` is a *document* setting, a child of `w:settings` — it is
+  // NOT a legal child of `w:sectPr`. Writing it into document.xml (as this first
+  // did) produces a part Word ignores or repairs, and a verification that only
+  // greps for the string cannot tell the difference.
   const zip = await JSZip.loadAsync(buffer);
-  const entry = zip.file('word/document.xml');
+  const entry = zip.file('word/settings.xml');
   if (!entry) return buffer;
 
   const xml = await entry.async('string');
-  if (!/<w:sectPr[\s>]/.test(xml) || xml.includes('<w:mirrorMargins')) return buffer;
+  if (xml.includes('<w:mirrorMargins')) return buffer;
 
-  zip.file('word/document.xml', xml.replace(/(<w:sectPr[^>]*>)/g, '$1<w:mirrorMargins/>'));
+  const patched = /<w:settings[^>]*>/.test(xml)
+    ? xml.replace(/(<w:settings[^>]*>)/, '$1<w:mirrorMargins/>')
+    : xml;
+  if (patched === xml) return buffer;
+
+  zip.file('word/settings.xml', patched);
   return zip.generateAsync({ type: 'nodebuffer' });
 }
 
