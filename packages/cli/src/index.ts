@@ -9,7 +9,7 @@
 //   thesis init [--type thesis|journal|official]
 // ============================================================
 
-import { readFileSync, writeFileSync, realpathSync } from 'fs';
+import { readFileSync, writeFileSync, realpathSync, mkdirSync, existsSync } from 'fs';
 import { resolve, dirname, extname, basename } from 'path';
 import { parseTemplate } from '@openthesis/template-parser';
 import { parseMarkdown } from '@openthesis/markdown-parser';
@@ -20,6 +20,9 @@ import type { DocumentTemplate, DocumentType, LegacyDocumentJSON, ThesisDocument
 // The help text and CLAUDE.md document `thesis build …` (the bin is named
 // `thesis`), while the agent skill invokes the CLI directly as `build …`.
 // Both spellings are accepted so the documented form actually works.
+/** Read from the package manifest so `--version` cannot drift from the release. */
+const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version as string;
+
 const rawArgs = process.argv.slice(2);
 const args = rawArgs[0] === 'thesis' ? rawArgs.slice(1) : rawArgs;
 const command = args[0];
@@ -30,6 +33,8 @@ async function main() {
     case 'import':  cmdImport(args.slice(1)); break;
     case 'build':   await cmdBuild(args.slice(1)); break;
     case 'init':    cmdInit(args.slice(1)); break;
+    case '--version':
+    case '-v':      console.log(VERSION); break;
     case '--help':
     case '-h':
     case undefined: printHelp(); break;
@@ -49,13 +54,18 @@ function cmdImport(args: string[]) {
     process.exit(1);
   }
 
-  const inputPath = resolve(args[0]);
-  if (!isMarkdownPath(inputPath)) {
+  const fromStdin = args[0] === '-';
+  const inputPath = fromStdin ? '-' : resolve(args[0]);
+  if (!fromStdin && !isMarkdownPath(inputPath)) {
     console.error('Markdown input must use a .md or .markdown extension.');
     process.exit(1);
   }
   const typeOption = readOption(args, '--type');
   const outputOption = readOption(args, '-o');
+  if (fromStdin && !outputOption) {
+    console.error('Reading Markdown from stdin requires -o <content.json>.');
+    process.exit(1);
+  }
   const outputPath = outputOption
     ? resolve(outputOption)
     : inputPath.slice(0, -extname(inputPath).length) + '.json';
@@ -64,6 +74,8 @@ function cmdImport(args: string[]) {
     console.error('Output path must be different from the Markdown input path.');
     process.exit(1);
   }
+  ensureOverwritable(outputPath, args);
+  ensureOutputDir(outputPath);
 
   try {
     const document = parseMarkdown(readTextFile(inputPath), {
@@ -109,6 +121,8 @@ async function cmdParse(args: string[]) {
     });
 
     const outPath = templatePath.slice(0, -extname(templatePath).length) + '.template.json';
+    ensureOverwritable(outPath, args);
+    ensureOutputDir(outPath);
     writeFileSync(outPath, JSON.stringify(template, null, 2), 'utf-8');
 
     console.log(`\n✅ Template parsed successfully!`);
@@ -152,24 +166,40 @@ async function cmdBuild(args: string[]) {
     process.exit(1);
   }
 
-  const contentPath = resolve(args[0]);
+  const fromStdin = args[0] === '-';
+  const contentPath = fromStdin ? '-' : resolve(args[0]);
   const templateOption = readOption(args, '-t');
   const outputOption = readOption(args, '-o');
   const typeOption = readOption(args, '--type');
   const templatePath = templateOption ? resolve(templateOption) : null;
+  const toStdout = outputOption !== undefined && isStdout(outputOption);
   const outputPath = outputOption
-    ? resolve(outputOption)
+    ? (toStdout ? '-' : resolve(outputOption))
     : ['.json', '.md', '.markdown'].includes(extname(contentPath).toLowerCase())
       ? contentPath.slice(0, -extname(contentPath).length) + '.docx'
       : contentPath + '.docx';
 
-  if (isSamePath(outputPath, contentPath)) {
+  if (toStdout) {
+    // The document is binary: one progress line on stdout would corrupt it, so
+    // everything this command prints moves to stderr.
+    console.log = (...parts: unknown[]) => console.error(...parts);
+    if (process.stdout.isTTY) {
+      console.error('Refusing to write a binary DOCX to a terminal.');
+      console.error('  Redirect it (`-o - > out.docx`) or pass a file path.');
+      process.exit(1);
+    }
+  }
+  if (!toStdout && isSamePath(outputPath, contentPath)) {
     console.error('Output path must be different from the content input path.');
     process.exit(1);
   }
-  if (templatePath && isSamePath(outputPath, templatePath)) {
+  if (!toStdout && templatePath && isSamePath(outputPath, templatePath)) {
     console.error('Output path must be different from the template path.');
     process.exit(1);
+  }
+  if (!toStdout) {
+    ensureOverwritable(outputPath, args);
+    ensureOutputDir(outputPath);
   }
 
   console.log(`Content:  ${contentPath}`);
@@ -177,8 +207,9 @@ async function cmdBuild(args: string[]) {
   console.log(`Output:   ${outputPath}`);
 
   try {
-    const isMarkdown = isMarkdownPath(contentPath);
     const source = readTextFile(contentPath);
+    // stdin carries no extension, so a leading `{` is the only honest signal.
+    const isMarkdown = fromStdin ? !source.trimStart().startsWith('{') : isMarkdownPath(contentPath);
     const contentJson = isMarkdown
       ? parseMarkdown(source, {
           documentType: typeOption ? validateDocType(typeOption) : undefined,
@@ -219,12 +250,13 @@ async function cmdBuild(args: string[]) {
         : contentJson.type === 'journal' ? 'journal article'
         : 'official document';
         
-      await renderDocument({
-        outputPath,
+      const buffer = await renderDocument({
+        outputPath: toStdout ? '' : outputPath,
         template,
         document: contentJson,
         contentDir,
       });
+      if (toStdout) process.stdout.write(buffer);
     } else {
       console.log('  Legacy document format detected, falling back to renderLegacy...');
 
@@ -239,7 +271,8 @@ async function cmdBuild(args: string[]) {
         : contentJson.title?.includes('公文') || contentJson.title?.includes('通知') ? 'official document'
         : 'document';
         
-      await renderLegacy(contentJson as LegacyDocumentJSON, template, outputPath, contentDir);
+      const buffer = await renderLegacy(contentJson as LegacyDocumentJSON, template, toStdout ? '' : outputPath, contentDir);
+      if (toStdout) process.stdout.write(buffer);
     }
 
     console.log(`\n✅ ${docType} built successfully!`);
@@ -257,6 +290,8 @@ function cmdInit(args: string[]) {
   // Shared with every other command so `init --type=journal` works too; the
   // old `args.indexOf('--type')` lookup silently produced a thesis sample.
   const docType = validateDocType(readOption(args, '--type') ?? 'thesis');
+  // Overwriting a sample the author has since edited would cost them their work.
+  ensureOverwritable(`${docType}-content.json`, args);
 
   switch (docType) {
     case 'thesis':   createThesisSample(); break;
@@ -440,7 +475,8 @@ const VALID_DOC_TYPES: DocumentType[] = ['thesis', 'journal', 'official'];
 
 /** Options the CLI understands; anything else on the command line is a typo. */
 const VALUE_FLAGS = ['--type', '-t', '-o', '--org'];
-const KNOWN_FLAGS = new Set([...VALUE_FLAGS, '--help', '-h']);
+const SET_FLAGS = ['--force', '-y'];
+const KNOWN_FLAGS = new Set([...VALUE_FLAGS, ...SET_FLAGS, '--help', '-h', '--version', '-v']);
 
 /**
  * Read an option written either as `--flag value` or `--flag=value`.
@@ -463,7 +499,8 @@ function readOption(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
   if (index < 0) return undefined;
   const value = args[index + 1];
-  if (!value || value.startsWith('-')) {
+  // `-` is a value (stdin/stdout), not a stray flag.
+  if (!value || (value.startsWith('-') && value !== '-')) {
     console.error(`Missing value for ${flag}.`);
     process.exit(1);
   }
@@ -505,7 +542,33 @@ function isSamePath(a: string, b: string): boolean {
 
 /** Read UTF-8 text, dropping a BOM that would otherwise break JSON.parse. */
 function readTextFile(path: string): string {
+  // `-` means stdin, so a manuscript can be piped in without a temp file.
+  if (path === '-') return readFileSync(0, 'utf-8').replace(/^\uFEFF/, '');
   return readFileSync(path, 'utf-8').replace(/^\uFEFF/, '');
+}
+
+/** Create the output's parent directory so `-o a/b/c.docx` works like `mkdir -p`. */
+function ensureOutputDir(path: string): void {
+  mkdirSync(dirname(resolve(path)), { recursive: true });
+}
+
+/**
+ * Refuse to write over an existing file unless `--force` was given.
+ *
+ * Every output used to be overwritten in silence, so a second run — or a typo in
+ * `-o` — destroyed the previous document without a word.
+ */
+function ensureOverwritable(path: string, args: string[]): void {
+  if (!existsSync(path)) return;
+  if (args.includes('--force') || args.includes('-y')) return;
+  console.error(`Output already exists: ${path}`);
+  console.error('  Pass --force to overwrite it.');
+  process.exit(1);
+}
+
+/** True when the caller asked to write the document to stdout. */
+function isStdout(path: string): boolean {
+  return path === '-';
 }
 
 function errorMessage(error: unknown): string {
@@ -558,8 +621,17 @@ function printHelp() {
 
   Options (build):
     -t <template.json>    Template file (default: built-in USTB)
-    -o <output.docx>      Output path (default: input + .docx)
+    -o <output.docx>      Output path (default: input + .docx, "-" for stdout)
     --type <t>            Markdown document type (overrides front matter)
+    --force, -y           Overwrite an existing output file
+
+  Other:
+    --version, -v         Print the version
+    -                     Read the input from stdin (build, import)
+
+  Examples:
+    thesis import - --type journal -o paper.json < manuscript.md
+    thesis build - -t template.json -o - > output.docx
   `);
 }
 

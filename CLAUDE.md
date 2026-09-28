@@ -78,7 +78,6 @@ thesis build <manuscript.md> --type thesis -t <template.json> -o output.docx
 | Markdown dialect | Predictable manuscript subset | Expand only with compatibility tests |
 | Multi-section templates | Every section is read into `pageSections`, but only the last is rendered | Emit real section breaks when a document spans setups |
 | Unsupported LaTeX | The Unicode fallback is lossy; `convertLatexToOmml` reports it, but the AST path has no diagnostic channel | Surface unsupported syntax on the rendered document |
-| Inline formatting | `InlineRange` / `RichParagraph` exist in the schema but nothing produces or reads them | Either implement or remove |
 
 See `AUDIT.md` for the full audit, including the findings that are still open.
 

@@ -44,7 +44,7 @@ import type {
   SignatureBlockBlock,
   AttachmentNoteBlock,
 } from '@openthesis/document-schema';
-import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, extname, isAbsolute, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import JSZip from 'jszip';
@@ -1705,6 +1705,9 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
   buffer = await fixChineseFonts(buffer);
 
   if (options.outputPath) {
+    // `-o a/b/c.docx` should behave like `mkdir -p` rather than fail with an
+    // ENOENT raised deep inside the writer.
+    mkdirSync(dirname(options.outputPath), { recursive: true });
     writeFileSync(options.outputPath, buffer);
   }
 

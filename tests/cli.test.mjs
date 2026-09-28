@@ -179,3 +179,77 @@ test('build rejects invalid legacy content too', () => {
   assert.match(result.stderr, /has 2 cells but the table declares 1 column/);
   assert.equal(existsSync(output), false);
 });
+
+/** Same as `run`, but keeps stdout as bytes: a DOCX must not be decoded. */
+function runBuffer(args, input) {
+  return spawnSync(process.execPath, [cli, ...args], {
+    cwd: process.cwd(),
+    ...(input === undefined ? {} : { input }),
+  });
+}
+
+const thesisContent = title => JSON.stringify({
+  type: 'thesis', meta: { title }, cover: [],
+  sections: [{ id: 'a', type: 'chapter', title: 'A', content: [{ type: 'paragraph', text: 'Body.' }] }],
+});
+
+test('--version prints the packaged version', () => {
+  for (const flag of ['--version', '-v']) {
+    const result = run([flag]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout.trim(), /^\d+\.\d+\.\d+$/);
+  }
+});
+
+test('creates a missing output directory instead of failing with ENOENT', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'content.json');
+  writeFileSync(input, thesisContent('Deep'));
+  const output = join(dir, 'deeply', 'nested', 'out.docx');
+
+  const result = run(['build', input, '-o', output]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(output), true);
+});
+
+test('refuses to overwrite an existing output without --force', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'content.json');
+  writeFileSync(input, thesisContent('Once'));
+  const output = join(dir, 'out.docx');
+
+  assert.equal(run(['build', input, '-o', output]).status, 0, 'first build');
+  const first = readFileSync(output);
+
+  // Running the same command twice used to replace the document in silence.
+  const second = run(['build', input, '-o', output]);
+  assert.equal(second.status, 1);
+  assert.match(second.stderr, /Output already exists/);
+  assert.match(second.stderr, /--force/);
+  assert.deepEqual(readFileSync(output), first, 'the first document must survive');
+
+  assert.equal(run(['build', input, '-o', output, '--force']).status, 0);
+});
+
+test('reads the input from stdin', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const output = join(dir, 'piped.docx');
+  const result = runBuffer(['build', '-', '--type', 'thesis', '-o', output],
+    Buffer.from('---\ntitle: Piped\n---\n## Section\nBody text.'));
+
+  assert.equal(result.status, 0, result.stderr.toString());
+  assert.equal(existsSync(output), true);
+});
+
+test('writes the document to stdout without corrupting it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'content.json');
+  writeFileSync(input, thesisContent('Pipe'));
+
+  const result = runBuffer(['build', input, '-o', '-']);
+  assert.equal(result.status, 0, result.stderr.toString());
+  // A DOCX is a ZIP: one progress line on stdout would move the signature.
+  assert.equal(result.stdout.subarray(0, 2).toString('ascii'), 'PK');
+  assert.ok(result.stdout.length > 5000, `expected a document, received ${result.stdout.length} bytes`);
+  assert.match(result.stderr.toString(), /Output:/, 'progress must move to stderr');
+});

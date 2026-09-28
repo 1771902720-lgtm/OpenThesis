@@ -116,14 +116,14 @@ reported symptom is addressed but a related gap remains; **Open** = unchanged.
 | P2-9 | `basedOn` cycles are accepted and produce order-dependent merges. | Fixed — a loop is cut at its earliest-declared member, so the merge no longer depends on the entry point, and the loop is reported as a warning. A `basedOn` pointing at a missing style still warns. |
 | P2-10 | `lineSpacing` stores the raw `w:line` and drops `lineRule`, so `auto` (240ths) and `exact` (twips) are conflated. | Fixed — `ParagraphStyle.lineSpacingRule` carries the rule from `w:lineRule` through to the rendered `w:spacing`. |
 | P2-11 | Markdown list nesting is `floor(indent / 2)`, so standard 2- and 4-space nesting is mis-levelled. | Fixed — level comes from the marker's column. |
-| P2-12 | `InlineRange` / `RichParagraph` exist in the schema and are referenced nowhere. | Open — documented in `CLAUDE.md`; either implement or remove. Verified: three declarations and no producer or consumer anywhere in `packages/*/src`. |
+| P2-12 | `InlineRange` / `RichParagraph` exist in the schema and are referenced nowhere. | Fixed — both interfaces were removed. Nothing produced or consumed them, no block type can hold inline formatting, and the Markdown parser has no emphasis handling, so the types advertised a capability that did not exist. |
 | P2-13 | Lists render as plain text runs with a manual `•` / `1.` prefix, not Word numbering. | Fixed — real OOXML numbering, each list restarting its own counter. |
 | P2-14 | No document validator exists anywhere; the only runtime checks live in the renderer. | Fixed — `validateDocument` / `validateLegacyDocument`, run by `build`. |
 | P2-15 | `$$a=b$$ trailing` mis-parses and then consumes following lines until one ends with `$$`. | Fixed — only an opener with no second `$$` starts a display block; the text after a closing `$$` becomes a paragraph. |
 | P2-16 | A document starting with `---` and no front matter silently drops everything up to the next `---`. | Fixed — a `---` block is only stripped when its interior is front-matter-shaped, so a thematic break before a heading stays a thematic break. |
 | P2-17 | An invalid official `category` silently becomes `通知`; `degree: PhD` silently becomes `undefined`. | Fixed — an unrecognised category is refused instead of coerced; degree spellings are normalised (`PhD` → `doctor`) and anything else is refused; `validateDocument` also checks `meta.degree`. |
 | P2-18 | `resolveStyle` scans `styleRoles` linearly for every block — O(styles × blocks). | Fixed — `Object.entries(...).find(...)` materialised all 72 pairs before matching (9–11 µs per block, 18–24% of render time); the lookup now stops at the first match. |
-| P2-19 | CLI: no `--version`, no stdin/stdout, no `mkdir -p` for the output directory, no overwrite protection for an existing output. | Partial — the documented `thesis <command>` prefix is now accepted; the rest is open. All four gaps reproduced: `--version` exits 1 with `Unknown command`, a missing output directory fails with `ENOENT`, an existing output is overwritten silently, and `-o -` reports `Missing value for -o`. |
+| P2-19 | CLI: no `--version`, no stdin/stdout, no `mkdir -p` for the output directory, no overwrite protection for an existing output. | Fixed — `--version`/`-v`, `mkdir -p` for the output directory, an existing output refused unless `--force`/`-y`, and `-` for stdin (`build`, `import`) or stdout (`-o -`, with progress moved to stderr so the binary survives). |
 | P2-20 | Agent-skill documentation mismatches. | Fixed — block sequences, fence info strings, caption precedence, H1 handling, `backMatter`, and the platform-specific validator path are all corrected. |
 
 ### Repository hygiene
@@ -149,7 +149,7 @@ reported symptom is addressed but a related gap remains; **Open** = unchanged.
 | `markdown-parser` | Emphasis requires real delimiters (no intraword `_`, no space-flanked `*`); only tag-shaped `<…>` is stripped and autolinks keep their target. Heading closing-hash requires a space. Front-matter block sequences. Quote-aware list splitting. Single-column tables. Extended fence info strings. List level derived from the marker column. |
 | `assets/ustb-thesis-template.json` | The 72 entries that were byte-identical to the old invented defaults were stripped to empty objects. **This file still needs regenerating from the original `.docx`** (`thesis parse <template.docx>`) to recover any formatting the old parser dropped — see §5. |
 
-Test count: **29 → 90**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
+Test count: **29 → 95**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
 
 ---
 
@@ -196,17 +196,14 @@ Items 3–5 of the original list are done on this branch. What remains:
 1. **Regenerate the USTB template JSON (§5).** Still the highest-value single action.
 2. **Add real university and journal `.docx` files under `tests/fixtures/`** — now
    unblocked by the `.gitignore` change — and assert parsed geometry and roles.
-3. **Close the remaining P2 items**: escaped `&` after a row break (P2-6),
-   `w:line` / `lineRule` conflation (P2-10), the `$$a=b$$ trailing` mis-parse
-   (P2-15), a leading `---` with no front matter (P2-16), and `resolveStyle`'s
-   linear scan (P2-18).
-4. **Decide on `InlineRange` / `RichParagraph`** (P2-12): implement inline
-   formatting on import, or delete the dead types.
-5. **Emit real section breaks** for templates that declare more than one section
+3. **Non-`w:` namespace prefixes** (P2-8): the parser still keys on the literal
+   `w:` prefix, so a template using another prefix for the same namespace parses
+   to zero styles (it does now warn). This is the last P2 finding still open.
+4. **Emit real section breaks** for templates that declare more than one section
    geometry — currently all sections are read but only the last is rendered, and
    the template now warns about it.
-6. **CLI polish** (P2-19): `--version`, stdin/stdout, creating the output
-   directory, and overwrite protection for an existing output.
-7. **Non-`w:` namespace prefixes** (P2-8): the parser still keys on the literal
-   `w:` prefix, so a template using another prefix for the same namespace parses
-   to zero styles (it does now warn).
+5. **Inline formatting** (P2-12): the two unused types were removed. Modelling
+   rich runs means new schema, `markdown-parser` emphasis handling, and
+   `renderParagraph` splitting `text` at range boundaries.
+6. **Unsupported LaTeX diagnostics**: surface unsupported syntax on the rendered
+   document instead of only through `convertLatexToOmml`.

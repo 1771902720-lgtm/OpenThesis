@@ -373,22 +373,6 @@ export interface OfficialAttachment {
 }
 
 // ════════════════════════════════════════════════════════════
-// ── INLINE FORMATTING ──────────────────────────────────────
-// ════════════════════════════════════════════════════════════
-
-export interface InlineRange {
-  offset: number; length: number;
-  bold?: boolean; italic?: boolean;
-  underline?: boolean; superscript?: boolean; subscript?: boolean;
-  fontName?: string; fontSize?: number; color?: string;
-}
-
-export interface RichParagraph {
-  text: string;
-  ranges: InlineRange[];
-}
-
-// ════════════════════════════════════════════════════════════
 // ── LEGACY FORMAT ──────────────────────────────────────────
 // ════════════════════════════════════════════════════════════
 
