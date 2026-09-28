@@ -93,22 +93,22 @@ Both entry points now report problems instead of failing silently:
   reports every problem at once with a path such as
   `sections[0].content[2].headers`, instead of failing inside the OOXML builder.
 
-## Known gap: the built-in USTB template
+## The built-in USTB template
 
-`assets/ustb-thesis-template.json` was produced by a parser version that ignored
-`w:pPr/w:rPr` and invented fallback values, so it carries no per-style formatting.
-The renderer now compensates with domain role defaults and output is correct, but
-the file itself is uninformative. Regenerate it from the original `.docx` with the
-current parser:
+`assets/ustb-thesis-template.json` was regenerated from
+`《北京科技大学硕士学位论文模板》.docx` with the fixed parser: all 72 styles now
+declare formatting, and `roleWinners` records which style drives each role. The
+numbers match `《北京科技大学研究生学位论文书写指南》` — 一级标题 黑体 小三 加粗
+居中, 二级/三级标题 黑体 四号 加粗, 正文 宋体 小四 with a 2-character first-line
+indent. Regenerate it the same way after any parser change that affects styles:
 
 ```bash
 node packages/cli/dist/index.js parse "<template>.docx" --type thesis --org "北京科技大学"
 ```
 
 ## Next Steps
-1. Regenerate the built-in USTB template JSON from its source `.docx`
-2. Add explicit unsupported-syntax diagnostics and custom macro expansion to the equation engine
-3. Get real university and journal templates to expand parser compatibility fixtures (`.gitignore` now allows `tests/fixtures/**/*.docx`)
-4. Add ML-assisted layout-role understanding behind deterministic fallbacks
-5. Add agent content-generation workflows on top of the typed schema
-6. Build a community-contributed template marketplace
+1. Add explicit unsupported-syntax diagnostics and custom macro expansion to the equation engine
+2. Get real university and journal templates to expand parser compatibility fixtures (`.gitignore` now allows `tests/fixtures/**/*.docx`)
+3. Add ML-assisted layout-role understanding behind deterministic fallbacks
+4. Add agent content-generation workflows on top of the typed schema
+5. Build a community-contributed template marketplace

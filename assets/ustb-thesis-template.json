@@ -1,11 +1,11 @@
 {
   "meta": {
     "organization": "北京科技大学",
-    "name": "Untitled Template",
     "documentType": "thesis",
-    "parserVersion": "0.1.0",
-    "parsedAt": "2026-07-06T05:34:03.992Z",
-    "sourceFile": "C:\\Users\\17719\\Desktop\\各类文件\\学位论文 模板\\《北京科技大学硕士学位论文模板》.docx"
+    "sourceFile": "《北京科技大学硕士学位论文模板》.docx",
+    "name": "北京科技大学硕士学位论文模板",
+    "parserVersion": "0.2.0",
+    "parsedAt": "2026-09-28T13:23:46.203Z"
   },
   "page": {
     "width": 11906,
@@ -21,313 +21,985 @@
     "columns": 1,
     "columnGutter": 0
   },
+  "pageSections": [
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 851,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 851,
+      "columns": 1,
+      "columnGutter": 720
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    },
+    {
+      "width": 11906,
+      "height": 16838,
+      "margins": {
+        "top": 1701,
+        "bottom": 1134,
+        "left": 1701,
+        "right": 1701
+      },
+      "headerDistance": 851,
+      "footerDistance": 850,
+      "columns": 1,
+      "columnGutter": 0
+    }
+  ],
   "styles": {
     "1": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 340,
+        "spaceAfter": 340,
+        "outlineLevel": 0
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "2": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Arial",
+        "eastAsia": "黑体",
+        "size": 32,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "spaceBefore": 260,
+        "spaceAfter": 260,
+        "outlineLevel": 1
+      },
+      "lineSpacing": 416,
+      "lineSpacingRule": "auto"
     },
     "3": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 32,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "spaceBefore": 260,
+        "spaceAfter": 260,
+        "outlineLevel": 2
+      },
+      "lineSpacing": 416,
+      "lineSpacingRule": "auto"
     },
     "10": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": true
+      },
       "paragraph": {}
     },
     "11": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "12": {
-      "font": {},
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
       "paragraph": {}
     },
     "15": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 24
+      },
       "paragraph": {}
     },
     "100": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体"
+      },
       "paragraph": {}
     },
     "a": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "a0": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体"
+      },
       "paragraph": {}
     },
     "a1": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体"
+      },
       "paragraph": {}
     },
     "a2": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体"
+      },
       "paragraph": {}
     },
     "u1": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 340,
+        "spaceAfter": 340,
+        "outlineLevel": 0
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "a3": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 20
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "a4": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "left"
+      }
     },
     "a6": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "spaceAfter": 120
+      }
     },
     "TOC3": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 24
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "leftIndent": 960
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "a7": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "宋体",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "a8": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 18
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "aa": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 18
+      },
+      "paragraph": {
+        "alignment": "left"
+      }
     },
     "ac": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 18
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "TOC1": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 24
+      },
+      "paragraph": {
+        "alignment": "justified"
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "ae": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 18
+      },
+      "paragraph": {
+        "alignment": "left"
+      }
     },
     "TOC2": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 24
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "leftIndent": 480
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "af": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "left"
+      }
     },
     "af1": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体"
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "af2": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "underline": true,
+        "color": "0000FF"
+      },
       "paragraph": {}
     },
     "af3": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 21
+      },
       "paragraph": {}
     },
     "af4": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体"
+      },
       "paragraph": {}
     },
     "u5": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 340,
+        "spaceAfter": 330,
+        "outlineLevel": 0
+      },
+      "lineSpacing": 579,
+      "lineSpacingRule": "auto"
     },
     "u2": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 28,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "spaceBefore": 260,
+        "spaceAfter": 260,
+        "outlineLevel": 1
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "u3": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 28,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "spaceBefore": 260,
+        "spaceAfter": 260,
+        "outlineLevel": 2
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "af5": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "宋体",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "firstLineIndent": 420
+      }
     },
     "Default": {
-      "font": {},
+      "font": {
+        "name": "宋体",
+        "eastAsia": "宋体",
+        "size": 24,
+        "color": "000000"
+      },
       "paragraph": {}
     },
     "b1": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 340,
+        "spaceAfter": 340,
+        "outlineLevel": 0
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "b": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 24
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "firstLineIndent": 480,
+        "spaceBefore": 10,
+        "spaceAfter": 10
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "b0": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "center"
+      }
     },
     "b2": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 28,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "spaceBefore": 260,
+        "spaceAfter": 260,
+        "outlineLevel": 1
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "af6": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "黑体",
+        "size": 32
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 480,
+        "spaceAfter": 360
+      }
     },
     "af7": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "center"
+      }
     },
     "af8": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "firstLineIndent": 480
+      },
+      "lineSpacing": 320,
+      "lineSpacingRule": "exact"
     },
     "u6": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "spaceBefore": 100,
+        "spaceAfter": 100
+      }
     },
     "af9": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Cambria",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": false
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 340,
+        "spaceAfter": 340,
+        "outlineLevel": 0
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "afa": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Cambria",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 340,
+        "spaceAfter": 340,
+        "outlineLevel": 0
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "afb": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "宋体",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "center"
+      }
     },
     "afc": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "z": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 24
+      },
       "paragraph": {}
     },
     "u": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 340,
+        "spaceAfter": 330,
+        "outlineLevel": 0
+      },
+      "lineSpacing": 579,
+      "lineSpacingRule": "auto"
     },
     "P4": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified"
+      }
     },
     "u7": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 24,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "justified"
+      },
+      "lineSpacing": 400,
+      "lineSpacingRule": "exact"
     },
     "uChar": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 24,
+        "bold": true,
+        "underline": false
+      },
       "paragraph": {}
     },
     "u8": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 30,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center"
+      },
+      "lineSpacing": 400,
+      "lineSpacingRule": "exact"
     },
     "u9": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "center"
+      },
+      "lineSpacing": 400,
+      "lineSpacingRule": "exact"
     },
     "ua": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 24
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "firstLineIndent": 480,
+        "spaceBefore": 10,
+        "spaceAfter": 10
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "uChar1": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 24
+      },
       "paragraph": {}
     },
     "uChar0": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 21
+      },
       "paragraph": {}
     },
     "u4": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 21,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 10,
+        "spaceAfter": 10
+      }
     },
     "ub": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 21,
+        "bold": true
+      },
+      "paragraph": {
+        "alignment": "center",
+        "spaceBefore": 150,
+        "spaceAfter": 50
+      },
+      "lineSpacing": 360,
+      "lineSpacingRule": "auto"
     },
     "u0": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 24
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "firstLineIndent": 480,
+        "leftIndent": 0,
+        "spaceBefore": 10,
+        "spaceAfter": 10
+      },
+      "lineSpacing": 312,
+      "lineSpacingRule": "auto"
     },
     "a5": {
-      "font": {},
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
       "paragraph": {}
     },
     "af0": {
-      "font": {},
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21,
+        "bold": true
+      },
       "paragraph": {}
     },
     "a9": {
-      "font": {},
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 18
+      },
       "paragraph": {}
     },
     "z0": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 21
+      },
       "paragraph": {}
     },
     "z1": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 36,
+        "bold": true
+      },
       "paragraph": {}
     },
     "z2": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "size": 30
+      },
       "paragraph": {}
     },
     "afd": {
-      "font": {},
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "宋体",
+        "color": "808080"
+      },
       "paragraph": {}
     },
     "TOC10": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Times New Roman",
+        "eastAsia": "黑体",
+        "size": 32,
+        "bold": false,
+        "color": "2F5496"
+      },
+      "paragraph": {
+        "alignment": "left",
+        "spaceBefore": 240,
+        "spaceAfter": 0,
+        "outlineLevel": 9
+      },
+      "lineSpacing": 259,
+      "lineSpacingRule": "auto"
     },
     "ab": {
-      "font": {},
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 18
+      },
       "paragraph": {}
     },
     "MTConvertedEquation": {
-      "font": {},
+      "font": {
+        "name": "Cambria Math",
+        "eastAsia": "宋体",
+        "italic": true
+      },
       "paragraph": {}
     },
     "ad": {
-      "font": {},
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 18
+      },
       "paragraph": {}
     },
     "afe": {
-      "font": {},
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
       "paragraph": {}
     },
     "aff": {
-      "font": {},
-      "paragraph": {}
+      "font": {
+        "name": "Calibri",
+        "eastAsia": "宋体",
+        "size": 21
+      },
+      "paragraph": {
+        "alignment": "justified",
+        "firstLineIndent": 480
+      }
     }
   },
   "styleRoles": {
     "1": "heading1",
     "2": "heading2",
     "3": "heading3",
-    "10": "paragraph",
     "11": "paragraph",
     "12": "paragraph",
-    "15": "paragraph",
-    "100": "paragraph",
     "a": "paragraph",
-    "a0": "paragraph",
-    "a1": "paragraph",
-    "a2": "paragraph",
-    "u1": "paragraph",
+    "u1": "heading1",
+    "a6": "paragraph",
+    "u5": "heading1",
+    "u2": "heading2",
+    "u3": "heading3",
+    "b1": "heading1",
+    "b2": "heading2",
+    "af9": "heading1",
+    "afa": "heading1",
+    "u": "heading1",
+    "ua": "paragraph",
+    "u4": "figure_caption",
+    "ub": "figure_caption",
     "a3": "paragraph",
     "a4": "paragraph",
-    "a6": "paragraph",
     "TOC3": "paragraph",
     "a7": "paragraph",
     "a8": "paragraph",
@@ -337,53 +1009,31 @@
     "ae": "paragraph",
     "TOC2": "paragraph",
     "af": "paragraph",
-    "af1": "heading3",
-    "af2": "paragraph",
-    "af3": "paragraph",
-    "af4": "paragraph",
-    "u5": "paragraph",
-    "u2": "paragraph",
-    "u3": "paragraph",
     "af5": "paragraph",
     "Default": "paragraph",
-    "b1": "paragraph",
     "b": "paragraph",
     "b0": "paragraph",
-    "b2": "paragraph",
     "af6": "paragraph",
     "af7": "paragraph",
     "af8": "paragraph",
     "u6": "paragraph",
-    "af9": "paragraph",
-    "afa": "paragraph",
     "afb": "paragraph",
     "afc": "paragraph",
-    "z": "paragraph",
-    "u": "paragraph",
     "P4": "paragraph",
     "u7": "paragraph",
-    "uChar": "paragraph",
     "u8": "paragraph",
     "u9": "paragraph",
-    "ua": "paragraph",
-    "uChar1": "paragraph",
-    "uChar0": "paragraph",
-    "u4": "paragraph",
-    "ub": "paragraph",
     "u0": "paragraph",
-    "a5": "paragraph",
-    "af0": "paragraph",
-    "a9": "paragraph",
-    "z0": "paragraph",
-    "z1": "paragraph",
-    "z2": "paragraph",
-    "afd": "paragraph",
     "TOC10": "paragraph",
-    "ab": "paragraph",
-    "MTConvertedEquation": "paragraph",
-    "ad": "paragraph",
     "afe": "paragraph",
     "aff": "paragraph"
+  },
+  "roleWinners": {
+    "heading1": "1",
+    "heading2": "u2",
+    "heading3": "u3",
+    "paragraph": "ua",
+    "figure_caption": "ub"
   },
   "styleInheritance": {
     "1": "u1",
@@ -434,5 +1084,8 @@
     "MTConvertedEquation": "a0",
     "ad": "a0",
     "aff": "a"
-  }
+  },
+  "warnings": [
+    "The document declares 11 sections; only the last is used for page geometry, so cover or appendix page setups are not reproduced."
+  ]
 }

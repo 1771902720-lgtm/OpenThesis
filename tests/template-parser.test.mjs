@@ -230,3 +230,37 @@ test('reads a template that binds WordprocessingML to another prefix', async () 
   assert.equal(template.styles.a.lineSpacingRule, 'exact');
   assert.equal(template.page.width, 11906);
 });
+
+test('a style the document uses beats an unused stock style of the same role', async () => {
+  // Word's own `heading 2` carries the role by its name, but the template never
+  // applies it: every heading is set in the author's `u2级标题`. A plain object
+  // enumerates integer-like keys first, so "first entry carrying this role" won
+  // the stock style and rendered level-2 headings at its size instead.
+  const buffer = await createTemplateWith({
+    styles: '<w:style w:type="paragraph" w:styleId="2"><w:name w:val="heading 2"/>'
+      + '<w:rPr><w:sz w:val="32"/><w:rFonts w:eastAsia="宋体"/></w:rPr></w:style>'
+      + '<w:style w:type="paragraph" w:customStyle="1" w:styleId="u2级标题"><w:name w:val="u2级标题"/>'
+      + '<w:rPr><w:sz w:val="28"/><w:rFonts w:eastAsia="黑体"/></w:rPr></w:style>',
+    body: '<w:p><w:pPr><w:pStyle w:val="u2级标题"/></w:pPr><w:r><w:t>标题</w:t></w:r></w:p>' + BODY_SECTION,
+  });
+  const template = await parseTemplate(buffer, { documentType: 'thesis' });
+
+  // Both styles keep the role; the winner is recorded separately.
+  assert.equal(template.styleRoles['2'], 'heading2');
+  assert.equal(template.styleRoles['u2级标题'], 'heading2');
+  assert.equal(template.roleWinners.heading2, 'u2级标题');
+  assert.equal(template.styles[template.roleWinners.heading2].font.size, 28);
+});
+
+test('w:firstLineChars wins over the twips value Word stores beside it', async () => {
+  // Word writes both, and the twips attribute is a stale copy: two characters
+  // at 12pt is 480 twips, not the 200 left behind when the style was made.
+  const buffer = await createTemplateWith({
+    styles: '<w:style w:type="paragraph" w:default="1" w:styleId="a"><w:name w:val="Normal"/>'
+      + '<w:pPr><w:ind w:firstLineChars="200" w:firstLine="200"/></w:pPr>'
+      + '<w:rPr><w:sz w:val="24"/></w:rPr></w:style>',
+    body: BODY_SECTION,
+  });
+  const template = await parseTemplate(buffer, { documentType: 'thesis' });
+  assert.equal(template.styles.a.paragraph.firstLineIndent, 480);
+});

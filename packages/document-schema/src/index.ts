@@ -31,6 +31,16 @@ export interface DocumentTemplate {
   pageSections?: PageSettings[];
   styles: Record<string, ParagraphStyle>;
   styleRoles: Record<string, StyleRole>;
+  /**
+   * The style that should drive each role.
+   *
+   * `styleRoles` is an id→role map, and a plain object always enumerates
+   * integer-like keys first — Word commonly names styles `1`, `2`, `3`, so "the
+   * first entry carrying this role" may not be the one the template was built
+   * around. This records the parser's decision explicitly, leaving `styleRoles`
+   * as the complete mapping.
+   */
+  roleWinners?: Partial<Record<StyleRole, string>>;
   styleInheritance?: Record<string, string>;
   documentType?: DocumentType;
   /**

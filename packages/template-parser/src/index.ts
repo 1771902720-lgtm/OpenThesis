@@ -14,6 +14,7 @@ import type {
   ParagraphStyle,
   ParagraphFormatting,
   LineSpacingRule,
+  StyleRole,
   BlockType,
 } from '@openthesis/document-schema';
 
@@ -89,8 +90,11 @@ export async function parseTemplate(
     ? pageSections[pageSections.length - 1]
     : getDefaultPageSettings();
 
-  // 4. Map styles to semantic roles (heuristic detection)
-  const styleRoles = detectStyleRoles(resolvedStyles, Object.keys(rawStyles));
+  // 4. Map styles to semantic roles (heuristic detection), and record which
+  // style wins each role. See `pickRoleWinners`.
+  const usage = countStyleUsage(docXml);
+  const { roles: styleRoles, explicit } = detectStyleRoles(resolvedStyles, Object.keys(rawStyles));
+  const roleWinners = pickRoleWinners(styleRoles, usage, explicit);
 
   // 5. Build template
   const meta: TemplateMeta = {
@@ -116,6 +120,7 @@ export async function parseTemplate(
     ...(pageSections.length > 0 ? { pageSections } : {}),
     styles,
     styleRoles,
+    ...(Object.keys(roleWinners).length > 0 ? { roleWinners } : {}),
     styleInheritance: buildInheritanceMap(rawStyles),
     ...(warnings.length > 0 ? { warnings } : {}),
   };
@@ -303,14 +308,18 @@ function extractParagraphProps(pPr: any, runSize?: number): RawParagraphProps | 
     const right = parseInt(ind['@_w:right']);
     const rightChars = parseInt(ind['@_w:rightChars']);
 
-    if (!isNaN(firstLine)) props.indent.firstLine = firstLine;
-    else if (!isNaN(firstLineChars)) props.indent.firstLine = charsToTwips(firstLineChars);
+    // `w:firstLineChars` wins when present: Word writes both attributes, and the
+    // twips value beside it is derived from whatever size the paragraph had at
+    // the time, so it goes stale — two characters at 12pt is 480 twips, not the
+    // 200 Word left behind. `w:leftChars` / `w:rightChars` behave the same way.
+    if (!isNaN(firstLineChars)) props.indent.firstLine = charsToTwips(firstLineChars);
+    else if (!isNaN(firstLine)) props.indent.firstLine = firstLine;
 
-    if (!isNaN(left)) props.indent.left = left;
-    else if (!isNaN(leftChars)) props.indent.left = charsToTwips(leftChars);
+    if (!isNaN(leftChars)) props.indent.left = charsToTwips(leftChars);
+    else if (!isNaN(left)) props.indent.left = left;
 
-    if (!isNaN(right)) props.indent.right = right;
-    else if (!isNaN(rightChars)) props.indent.right = charsToTwips(rightChars);
+    if (!isNaN(rightChars)) props.indent.right = charsToTwips(rightChars);
+    else if (!isNaN(right)) props.indent.right = right;
   }
 
   // Spacing
@@ -676,23 +685,31 @@ function getDefaultPageSettings(): PageSettings {
 function detectStyleRoles(
   styles: Record<string, RawStyle>,
   styleNames: string[],
-): Record<string, BlockType> {
-  const roles: Record<string, BlockType> = {};
+): { roles: Record<string, StyleRole>; explicit: Set<string> } {
+  const roles: Record<string, StyleRole> = {};
+  // Styles a name pattern recognised, as opposed to ones guessed from their
+  // outline level. A named match is the stronger signal of intent.
+  const explicit = new Set<string>();
 
   // Heuristic patterns for common Chinese thesis style naming.
   // Patterns are anchored on purpose: the previous unanchored `/^(表|Table|题注)/`
   // also matched Word's built-in `TableGrid` ("Table Grid") and
   // "Table of Contents", turning table and TOC styles into level-3 headings.
-  const patterns: Array<{ regex: RegExp; role: BlockType }> = [
-    // Chapter titles
-    { regex: /^(标题\s*1|Heading\s*1|Chapter|第.*章|h1|标题1|章标题)$/i, role: 'heading1' },
+  const patterns: Array<{ regex: RegExp; role: StyleRole }> = [
+    // Chapter titles. `u1级标题` is how Chinese Word templates name the author's
+    // own level-1 style; a bare `u标题` deliberately does not match, because the
+    // USTB template uses it for front-matter headings (摘要, ABSTRACT, 序) with
+    // different spacing from a chapter title.
+    { regex: /^(标题\s*1|Heading\s*1|Chapter|第.*章|h1|标题1|章标题|u?1级标题)$/i, role: 'heading1' },
     // Section titles
-    { regex: /^(标题\s*2|Heading\s*2|Section|h2|标题2|节标题)$/i, role: 'heading2' },
+    { regex: /^(标题\s*2|Heading\s*2|Section|h2|标题2|节标题|u?2级标题)$/i, role: 'heading2' },
     // Subsection titles
-    { regex: /^(标题\s*3|Heading\s*3|Subsection|h3|标题3|小节标题)$/i, role: 'heading3' },
-    { regex: /^(标题\s*4|Heading\s*4|h4|标题4)$/i, role: 'heading4' },
+    { regex: /^(标题\s*3|Heading\s*3|Subsection|h3|标题3|小节标题|u?3级标题)$/i, role: 'heading3' },
+    { regex: /^(标题\s*4|Heading\s*4|h4|标题4|u?4级标题)$/i, role: 'heading4' },
     // Body text
-    { regex: /^(正文|Normal|Body|body\s*text|正文文本|普通)$/i, role: 'paragraph' },
+    { regex: /^(正文|u正文|Normal|Body|body\s*text|正文文本|普通)$/i, role: 'paragraph' },
+    // Figure and table captions share one role: the renderer styles both from it.
+    { regex: /^(u?图标题|u?表标题|图题|表题|Figure\s*Caption|Table\s*Caption)$/i, role: 'figure_caption' },
     // Cover title
     { regex: /^(封面|Cover|Title|论文题目|题目)$/i, role: 'centered_text' },
     // Equation styles — MathType emits "MT Converted Equation", WPS emits "公式".
@@ -721,6 +738,7 @@ function detectStyleRoles(
     for (const { regex, role } of patterns) {
       if (regex.test(name) || regex.test(raw.name)) {
         roles[name] = role;
+        explicit.add(name);
         matched = true;
         break;
       }
@@ -742,9 +760,55 @@ function detectStyleRoles(
   for (const name of defaultParagraph) roles[name] = 'paragraph';
   for (const name of otherParagraph) roles[name] = 'paragraph';
 
-  return roles;
+  return { roles, explicit };
+}
+
+/** How often each paragraph style is applied in `document.xml`. */
+function countStyleUsage(docXml?: string): Map<string, number> {
+  const usage = new Map<string, number>();
+  if (!docXml) return usage;
+  for (const match of docXml.matchAll(/<w:pStyle[^>]*w:val="([^"]*)"/g)) {
+    usage.set(match[1], (usage.get(match[1]) ?? 0) + 1);
+  }
+  return usage;
+}
+
+/**
+ * Pick one style per role, preferring the styles the document actually uses.
+ *
+ * Word's stock `heading 2` / `heading 3` carry a heading role by name whether or
+ * not the template uses them. In the USTB template they are unused: every
+ * heading is set in the author's own `u2级标题` / `u3级标题` (黑体 四号, exactly
+ * what the university's writing guide requires). The winners cannot simply be
+ * written first in `styleRoles` either — a plain object enumerates integer-like
+ * keys first, and Word names those stock styles `1`, `2`, `3`, so they win any
+ * ordering that relies on key position. Hence a separate, explicit record.
+ */
+function pickRoleWinners(
+  roles: Record<string, StyleRole>,
+  usage: Map<string, number>,
+  explicit: ReadonlySet<string> = new Set(),
+): Partial<Record<StyleRole, string>> {
+  interface Candidate { id: string; explicit: boolean; count: number }
+  const best = new Map<StyleRole, Candidate>();
+
+  for (const [id, role] of Object.entries(roles)) {
+    const candidate: Candidate = { id, explicit: explicit.has(id), count: usage.get(id) ?? 0 };
+    const current = best.get(role);
+    // A style a name pattern recognised beats one guessed from its outline
+    // level; between equals, the one the document applies more often wins.
+    // Ties keep the first style seen, which is the order callers already had.
+    const better = !current
+      || (candidate.explicit && !current.explicit)
+      || (candidate.explicit === current.explicit && candidate.count > current.count);
+    if (better) best.set(role, candidate);
+  }
+
+  const winners: Partial<Record<StyleRole, string>> = {};
+  for (const [role, { id }] of best) winners[role] = id;
+  return winners;
 }
 
 // ── Utility Exports ───────────────────────────────────────
 
-export { extractRawStyles, resolveStyleInheritance, detectStyleRoles };
+export { extractRawStyles, resolveStyleInheritance, detectStyleRoles, countStyleUsage, pickRoleWinners };

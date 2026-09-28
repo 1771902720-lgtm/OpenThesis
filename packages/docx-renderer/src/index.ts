@@ -228,16 +228,19 @@ function resolveStyle(template: DocumentTemplate, role: StyleRole, docType?: str
   // 公文 follows GB/T 9704-2012 regardless of the supplied thesis template.
   if (docType === 'official') return fallback;
 
-  // Look up via role mapping. `Object.entries(styleRoles).find(...)` built every
-  // `[id, role]` pair before matching, which measured 9-11µs per block on the
-  // shipped 72-role table — around a fifth of render time. Iterating keys stops
-  // at the first match and keeps the first-match semantics.
+  // A parsed template records which style wins each role, because a plain
+  // object enumerates integer-like keys first and Word names its stock styles
+  // `1`, `2`, `3` — "the first entry carrying this role" is not the author's
+  // choice. Templates written before that field existed still resolve by scan,
+  // which also stops at the first match rather than building every pair.
   const roles = template.styleRoles;
-  let styleId: string | undefined;
-  for (const id in roles) {
-    if (Object.prototype.hasOwnProperty.call(roles, id) && roles[id] === role) {
-      styleId = id;
-      break;
+  let styleId: string | undefined = template.roleWinners?.[role];
+  if (!styleId) {
+    for (const id in roles) {
+      if (Object.prototype.hasOwnProperty.call(roles, id) && roles[id] === role) {
+        styleId = id;
+        break;
+      }
     }
   }
   const fromTemplate = styleId ? template.styles?.[styleId] : undefined;
