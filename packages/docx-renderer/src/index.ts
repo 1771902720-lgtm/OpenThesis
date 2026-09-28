@@ -1883,13 +1883,65 @@ function runningHeadElement<T extends Header | Footer>(kind: 'header' | 'footer'
     : new Footer({ children: [paragraph] })) as T;
 }
 
+/** How one part's running heads are resolved, slot by slot. */
+interface RunningHeadOptions {
+  /** The generated head/foot a template without header parts falls back to. */
+  fallbackText?: string;
+  fallbackPageNumber?: boolean;
+  /** `RenderOptions.headerText`, which overrides the default slot's text. */
+  textOverride?: string;
+  /** The document's own title, which overrides the even slot's text. */
+  evenTextOverride?: string;
+  /** `{title}` and friends, filled from the document being rendered. */
+  variables?: Record<string, string | undefined>;
+  showPageNumbers: boolean;
+}
+
+/**
+ * Whether the template asks the renderer to fill a slot in.
+ *
+ * `{title}`, `{organization}` and `{author}` are requests. Any other text is the
+ * *sample* the template was authored with — a university template can only carry
+ * the thesis its author happened to be writing — which is evidence of what
+ * belongs in the slot, not text to print.
+ */
+function asksForSubstitution(text: string | undefined): boolean {
+  return typeof text === 'string' && text.includes('{');
+}
+
+/**
+ * The text one slot starts from, before `{...}` is filled.
+ *
+ * - `default` — the odd pages, once `w:evenAndOddHeaders` is set: the caller's
+ *   `headerText` where there is one, else the template's own text.
+ * - `even` — the document's own title. The guide puts the thesis title on the
+ *   even pages, and the text a template carries there is the *sample* thesis's
+ *   title, so it is replaced rather than printed. Two things the template means
+ *   literally still win: an empty part is a suppression, and a `{...}` request
+ *   already says what the template wants.
+ * - `first` — always the template's own text; nothing generates one.
+ */
+function slotText(
+  slot: keyof RunningHeadSlots,
+  spec: RunningHead,
+  options: RunningHeadOptions,
+): string | undefined {
+  if (slot === 'default') return options.textOverride ?? spec.text;
+  if (slot === 'even' && options.evenTextOverride && spec.text && !asksForSubstitution(spec.text)) {
+    return options.evenTextOverride;
+  }
+  return spec.text;
+}
+
 /**
  * The header (or footer) group for one part.
  *
  * Where the template carries header/footer parts, they decide: an *empty* part
  * is a suppression rather than a missing head, which is how the university
  * template keeps the cover head-less (it has no `w:titlePg` anywhere), and an
- * `even` slot is what puts the thesis title on the even pages.
+ * `even` slot is what puts the thesis title on the even pages. That slot's text
+ * comes from the document, not from the template — see `slotText`; its
+ * formatting (centred, 五号, the 篇眉 rule) still comes from the template.
  *
  * A template that carries no such parts keeps the running head and page number
  * the renderer has always generated — except on the cover, which never gets
@@ -1899,16 +1951,7 @@ function partRunningHeads<T extends Header | Footer>(
   slots: RunningHeadSlots | undefined,
   kind: 'header' | 'footer',
   role: DocumentPartRole,
-  options: {
-    /** The generated head/foot a template without header parts falls back to. */
-    fallbackText?: string;
-    fallbackPageNumber?: boolean;
-    /** `RenderOptions.headerText`, which overrides the default slot's text. */
-    textOverride?: string;
-    /** `{title}` and friends, filled from the document being rendered. */
-    variables?: Record<string, string | undefined>;
-    showPageNumbers: boolean;
-  },
+  options: RunningHeadOptions,
 ): RunningHeadGroup<T> | undefined {
   if (!slots) {
     if (role === 'cover') return undefined;
@@ -1923,10 +1966,7 @@ function partRunningHeads<T extends Header | Footer>(
     const spec = slots[slot];
     if (!spec) continue;
 
-    const text = fillRunningHead(
-      (slot === 'default' ? options.textOverride : undefined) ?? spec.text,
-      options.variables ?? {},
-    );
+    const text = fillRunningHead(slotText(slot, spec, options), options.variables ?? {});
     const pageNumber = Boolean(spec.pageNumber) && (kind === 'header' || options.showPageNumbers);
     if (!text && !pageNumber) continue;
 
@@ -1941,7 +1981,13 @@ function buildPartSection(
   part: RenderedPart,
   template: DocumentTemplate,
   sections: PageSettings[],
-  options: { headerText?: string; variables?: Record<string, string | undefined>; showPageNumbers: boolean },
+  options: {
+    headerText?: string;
+    /** The document's own title: what the even-page running head must read. */
+    evenHeaderText?: string;
+    variables?: Record<string, string | undefined>;
+    showPageNumbers: boolean;
+  },
 ): { section: ISectionOptions; evenReference: boolean } {
   const settings = partSettings(part.role, sections, template);
   const shared = {
@@ -1952,6 +1998,7 @@ function buildPartSection(
 
   const headers = partRunningHeads<Header>(settings.headers, 'header', part.role, {
     ...shared,
+    evenTextOverride: options.evenHeaderText,
     fallbackText: `${template.meta.organization}学位论文`,
   });
   const footers = partRunningHeads<Footer>(settings.footers, 'footer', part.role, {
@@ -2036,6 +2083,9 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
       for (const part of parts) {
         const built = buildPartSection(part, template, templateSections, {
           headerText,
+          // The even-page running head is the thesis's own title. A template's
+          // part can only carry its author's sample title, which must not print.
+          evenHeaderText: doc.meta.title,
           variables: headVariables,
           showPageNumbers,
         });

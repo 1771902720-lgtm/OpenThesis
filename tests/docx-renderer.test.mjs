@@ -524,6 +524,34 @@ async function runningHeadTexts(zip, kind) {
   return parts;
 }
 
+/**
+ * The header parts the document references as `w:type="even"`, resolved through
+ * the package relationships — a part's *name* does not say which slot it fills,
+ * so the only way to know which header is the even one is to follow the r:id.
+ */
+async function evenHeaderParts(zip, xml) {
+  const rels = await zip.file('word/_rels/document.xml.rels').async('string');
+  const relationshipTags = [...rels.matchAll(/<Relationship\b[^>]*\/>/g)].map(match => match[0]);
+  const refs = [...xml.matchAll(/<w:headerReference\b[^>]*>/g)]
+    .map(match => match[0])
+    .filter(tag => /w:type="even"/.test(tag));
+
+  const parts = [];
+  for (const ref of refs) {
+    const id = (ref.match(/r:id="([^"]+)"/) ?? [])[1];
+    const target = (relationshipTags.find(tag => tag.includes(`Id="${id}"`))?.match(/Target="([^"]+)"/) ?? [])[1];
+    assert.ok(target, `no relationship target for ${id}`);
+    const name = `word/${target.replace(/^\/?word\//, '')}`;
+    const partXml = await zip.file(name).async('string');
+    parts.push({
+      name,
+      xml: partXml,
+      text: [...partXml.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map(match => match[1]).join(''),
+    });
+  }
+  return parts;
+}
+
 test('lays a thesis out as a cover, a front matter and a body section', async () => {
   // A thesis is not one run of pages. The cover carries no running head and no
   // page number, the front matter is numbered I, II, III, and the body restarts
@@ -581,15 +609,34 @@ test('lays a thesis out as a cover, a front matter and a body section', async ()
 
   // The running heads come from the template's header parts, not from a
   // generated `学位论文` line: odd pages read the university's line, even pages
-  // the template's own head text, both with the 篇眉 rule.
+  // the thesis's own title — a template can only carry the *sample* thesis's
+  // title in that slot, so it names what belongs there rather than what to
+  // print. Both keep the template's 篇眉 rule.
   const headers = await runningHeadTexts(zip, 'header');
   const odd = headers.find(part => part.text === '北京科技大学硕士学位论文');
   assert.ok(odd, `expected the template's odd-page head, got ${JSON.stringify(headers.map(h => h.text))}`);
   assert.match(odd.xml, /<w:pBdr>[\s\S]*<w:bottom /, '篇眉 rule');
-  assert.ok(
-    headers.some(part => part.text === '现代绿色化学中的物理有机问题'),
-    "the template's even-page head must be written",
-  );
+
+  const evenParts = await evenHeaderParts(zip, xml);
+  assert.ok(evenParts.length > 0, 'the sections must reference an even-page head');
+  for (const part of evenParts) {
+    assert.equal(part.text, '节理岩体隧道纵向地震易损性分析', `${part.name} must print the document's title`);
+    // The template's *formatting* for the slot survives the substitution:
+    // centred, 五号 (21 half-points), with the 篇眉 rule.
+    assert.match(part.xml, /<w:jc w:val="center"\/>/, 'centred');
+    assert.match(part.xml, /<w:sz w:val="21"\/>/, '五号');
+    assert.match(part.xml, /<w:pBdr>[\s\S]*<w:bottom /, '篇眉 rule');
+  }
+
+  // The sample thesis's title must not reach the package at all.
+  const placeholder = '现代绿色化学中的物理有机问题';
+  for (const name of Object.keys(zip.files).filter(n => !zip.files[n].dir && /\.(xml|rels)$/.test(n))) {
+    const partXml = await zip.file(name).async('string');
+    assert.ok(
+      !partXml.includes(placeholder),
+      `${name} still carries the template's sample title`,
+    );
+  }
 
   // The page-number parts print a PAGE field. The digits the template's own
   // footers still carry are the cached result of Word's last layout, not content.
@@ -616,6 +663,46 @@ test('lays a thesis out as a cover, a front matter and a body section', async ()
   assert.match(xml, /w:hanging="567"/);
   assert.match(xml, /w:firstLine="480"/);
   assert.match(xml, /w:line="312"/);
+});
+
+test('leaves an even head alone when the template asks for something or for nothing', async () => {
+  // The even slot is the one place the renderer overrides the template's text —
+  // because a template can only carry its author's *sample* title there. Two
+  // things the template means literally still win: a `{...}` request, which says
+  // what it wants, and an empty part, which suppresses the head entirely.
+  const thesis = title => ({
+    outputPath: '', template: title,
+    document: {
+      type: 'thesis', meta: { title: 'Real thesis title' }, cover: [],
+      sections: [{ id: 'ch', type: 'chapter', title: '第一章', content: [{ type: 'paragraph', text: '正文。' }] }],
+    },
+  });
+
+  // The body part takes its geometry from `template.page`, the cover and front
+  // matter from `pageSections`, so a template's even slot has to be changed in
+  // both places to see the rule.
+  const withEvenText = text => {
+    const clone = structuredClone(template);
+    if (clone.page.headers?.even) clone.page.headers.even.text = text;
+    for (const section of clone.pageSections ?? []) {
+      if (section.headers?.even) section.headers.even.text = text;
+    }
+    return clone;
+  };
+
+  const { zip: askingZip, xml: askingXml } = await documentXml(await renderDocument(thesis(withEvenText('{organization}'))));
+  const asked = await evenHeaderParts(askingZip, askingXml);
+  assert.ok(asked.length > 0, 'the even head must still be written');
+  assert.ok(
+    asked.every(part => part.text === '北京科技大学'),
+    `the template asked for {organization}, got ${JSON.stringify(asked.map(p => p.text))}`,
+  );
+
+  const { zip: suppressedZip, xml: suppressedXml } = await documentXml(await renderDocument(thesis(withEvenText(''))));
+  assert.equal((await evenHeaderParts(suppressedZip, suppressedXml)).length, 0, 'an empty part must stay empty');
+  for (const part of await runningHeadTexts(suppressedZip, 'header')) {
+    assert.notEqual(part.text, 'Real thesis title', `${part.name} revived a suppressed head`);
+  }
 });
 
 test('keeps one section when the template declares no sections', async () => {
