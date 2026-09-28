@@ -78,6 +78,12 @@ export interface PageSettings {
    * guide asks for 1 cm on the left.
    */
   gutter?: number;
+  /**
+   * 对称页边距: mirror the left/right margins on facing pages, as the guide asks
+   * for a bound thesis. The writer library has no option for it, so the renderer
+   * sets the OOXML flag itself.
+   */
+  mirrorMargins?: boolean;
   columns?: number;
   columnGutter?: number;
 }

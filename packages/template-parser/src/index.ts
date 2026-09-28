@@ -619,6 +619,8 @@ function extractPageSections(parsed: any): PageSettings[] {
 function sectPrToPageSettings(sectPr: any): PageSettings {
   const pgSz = sectPr['w:pgSz'];
   const pgMar = sectPr['w:pgMar'];
+  // 对称页边距: present as an empty element, absent otherwise.
+  const mirrorMargins = sectPr['w:mirrorMargins'] !== undefined;
 
   let width = 11906;   // A4 default in twips
   let height = 16838;
@@ -670,7 +672,7 @@ function sectPrToPageSettings(sectPr: any): PageSettings {
     if (!isNaN(space)) columnGutter = space;
   }
 
-  return { width, height, margins, headerDistance, footerDistance, gutter, columns, columnGutter };
+  return { width, height, margins, headerDistance, footerDistance, gutter, mirrorMargins, columns, columnGutter };
 }
 
 function getDefaultPageSettings(): PageSettings {

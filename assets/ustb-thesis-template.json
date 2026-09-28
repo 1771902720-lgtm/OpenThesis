@@ -20,7 +20,8 @@
     "footerDistance": 850,
     "gutter": 567,
     "columns": 1,
-    "columnGutter": 0
+    "columnGutter": 0,
+    "mirrorMargins": true
   },
   "pageSections": [
     {

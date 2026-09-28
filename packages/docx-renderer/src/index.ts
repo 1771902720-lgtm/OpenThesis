@@ -1725,6 +1725,20 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
   // 2. Fix docDefaults eastAsia font
   buffer = await fixChineseFonts(buffer);
 
+  // ── Post-process: mirror margins for double-sided binding ────
+  // The guide asks for 对称页边距 on a bound thesis and the writer library has no
+  // option for it, so the flag goes straight into every section property block.
+  if (template.page.mirrorMargins) {
+    buffer = await addMirrorMargins(buffer);
+  }
+
+  // ── Post-process: mirror margins for double-sided binding ────
+  // The guide asks for 对称页边距 and the writer library cannot express it, so
+  // the flag goes straight into every section property block.
+  if (template.page.mirrorMargins) {
+    buffer = await addMirrorMargins(buffer);
+  }
+
   if (options.outputPath) {
     // `-o a/b/c.docx` should behave like `mkdir -p` rather than fail with an
     // ENOENT raised deep inside the writer.
@@ -1752,6 +1766,26 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
  * values (宋体/黑体/仿宋) are preserved and now take effect. The theme part is
  * retained so its package relationship remains valid.
  */
+/**
+ * 对称页边距 — mirror the margins on facing pages.
+ *
+ * `ISectionPropertiesOptions` in the writer library has no mirror-margins
+ * option, so the flag is written into each section property block after the
+ * package is built. Idempotent: a document that already declares it is returned
+ * untouched.
+ */
+async function addMirrorMargins(buffer: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer);
+  const entry = zip.file('word/document.xml');
+  if (!entry) return buffer;
+
+  const xml = await entry.async('string');
+  if (!/<w:sectPr[\s>]/.test(xml) || xml.includes('<w:mirrorMargins')) return buffer;
+
+  zip.file('word/document.xml', xml.replace(/(<w:sectPr[^>]*>)/g, '$1<w:mirrorMargins/>'));
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
 async function fixChineseFonts(buffer: Buffer): Promise<Buffer> {
   const zip = await JSZip.loadAsync(buffer);
 
