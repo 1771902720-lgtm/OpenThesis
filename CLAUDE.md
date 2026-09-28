@@ -76,10 +76,28 @@ thesis build <manuscript.md> --type thesis -t <template.json> -o output.docx
 | Template parsing | Works best with real Word templates | Current: works for most templates |
 | Markdown inline styling | Paragraph schema stores plain text | Future: rich inline ranges |
 | Markdown dialect | Predictable manuscript subset | Expand only with compatibility tests |
+| Lists | Rendered as text with an explicit `•` / `1.` marker, not Word numbering | Emit real numbering, or keep and document |
+| Content validation | No document validator; malformed JSON fails inside the renderer | Add a validation pass with clear messages |
+| Multi-section templates | Only the body-level `w:sectPr` is read, so paragraph-level section breaks are ignored | Walk `w:p/w:pPr/w:sectPr` |
+
+See `AUDIT.md` for the full audit, including the findings that are still open.
+
+## Known gap: the built-in USTB template
+
+`assets/ustb-thesis-template.json` was produced by a parser version that ignored
+`w:pPr/w:rPr` and invented fallback values, so it carries no per-style formatting.
+The renderer now compensates with domain role defaults and output is correct, but
+the file itself is uninformative. Regenerate it from the original `.docx` with the
+current parser:
+
+```bash
+node packages/cli/dist/index.js parse "<template>.docx" --type thesis --org "北京科技大学"
+```
 
 ## Next Steps
-1. Add explicit unsupported-syntax diagnostics and custom macro expansion to the equation engine
-2. Get real university and journal templates to expand parser compatibility fixtures
-3. Add ML-assisted layout-role understanding behind deterministic fallbacks
-4. Add agent content-generation workflows on top of the typed schema
-5. Build a community-contributed template marketplace
+1. Regenerate the built-in USTB template JSON from its source `.docx`
+2. Add explicit unsupported-syntax diagnostics and custom macro expansion to the equation engine
+3. Get real university and journal templates to expand parser compatibility fixtures (`.gitignore` now allows `tests/fixtures/**/*.docx`)
+4. Add ML-assisted layout-role understanding behind deterministic fallbacks
+5. Add agent content-generation workflows on top of the typed schema
+6. Build a community-contributed template marketplace
