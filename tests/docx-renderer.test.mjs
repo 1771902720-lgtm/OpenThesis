@@ -42,7 +42,9 @@ test('renders real list, code, quote and figure blocks with a caption', async ()
   assert.match(xml, /First item/);
   assert.match(xml, /const x = 1;/);
   assert.match(xml, /Quoted text/);
-  assert.match(xml, /1  Figure caption/);
+  // One space between the number and the title; the old renderer emitted two.
+  assert.match(xml, /1 Figure caption/);
+  assert.doesNotMatch(xml, /1 {2}Figure caption/);
   assert.doesNotMatch(xml, /\[list_item:|\[code_block:|\[blockquote:/);
   const relationships = await zip.file('word/_rels/document.xml.rels').async('string');
   if (/relationships\/theme/.test(relationships)) {

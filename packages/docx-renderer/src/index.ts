@@ -139,10 +139,19 @@ const THESIS_STYLES: Record<string, ParagraphStyle> = {
     paragraph: { alignment: 'center' },
     lineSpacing: 276,
   },
+  // 表题 and 图题 are separate roles because the guide spaces them differently:
+  // 段前1行 for a table caption against 段前0.1行 for a figure caption. The numbers
+  // are the template's own (`ub` and `u4`), so a build that supplies no template
+  // lands on the same twips the university template declares.
+  table_caption: {
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 21, bold: true },
+    paragraph: { alignment: 'center', spaceBefore: 150, spaceAfter: 50 },
+    lineSpacing: 312,
+  },
   figure_caption: {
-    font: { name: 'Times New Roman', eastAsia: '宋体', size: 21 },
-    paragraph: { alignment: 'center' },
-    lineSpacing: 276,
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 21, bold: true },
+    paragraph: { alignment: 'center', spaceBefore: 10, spaceAfter: 10 },
+    lineSpacing: 312,
   },
 };
 
@@ -198,6 +207,13 @@ const OFFICIAL_STYLES: Record<string, ParagraphStyle> = {
   },
   table_header: {
     font: { name: 'Times New Roman', eastAsia: '黑体', size: 24, bold: true },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 276,
+  },
+  // GB/T 9704-2012 says nothing about captions, so 公文 keeps its table text
+  // typography for both roles instead of falling back to indented body text.
+  table_caption: {
+    font: { name: 'Times New Roman', eastAsia: '仿宋', size: 24 },
     paragraph: { alignment: 'center' },
     lineSpacing: 276,
   },
@@ -657,11 +673,31 @@ function styledRun(text: string, style: ParagraphStyle, forceBold?: boolean): Te
   });
 }
 
+/**
+ * A caption's number and title, separated by exactly one space.
+ *
+ * The renderer used to emit `${number}  ${caption}` — two spaces, which Word
+ * keeps. A content file may write the label into either half (`number: '表3-1'`
+ * with a bare title, or a number with the label already inside the caption), so
+ * both sides are normalised and the two are joined once instead of blindly
+ * prefixed.
+ */
+function captionText(number: string | undefined, caption: string): string {
+  const title = caption.trim();
+  const label = number?.trim();
+  if (!label) return title;
+  if (title.startsWith(label)) {
+    const rest = title.slice(label.length).replace(/^[\s\u3000]+/, '');
+    return rest ? `${label} ${rest}` : label;
+  }
+  return title ? `${label} ${title}` : label;
+}
+
 function renderTable(
   template: DocumentTemplate,
   block: TableBlock,
   docType?: string,
-): [Paragraph, Table, Paragraph] {
+): (Paragraph | Table)[] {
   const colCount = block.headers.length;
   if (colCount === 0) {
     throw new Error(`Table "${block.caption}" must define at least one header column.`);
@@ -702,12 +738,22 @@ function renderTable(
   const BI = { style: BorderStyle.SINGLE, size: 6, color: '000000' };
   const NO = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
 
-  // Caption
-  const captionPara = new Paragraph({
-    children: [styledRun(block.caption, captionStyle, true)],
-    alignment: AlignmentType.CENTER,
-    spacing: { before: 120, after: 60, ...lineStyle(captionStyle, 312) },
-  });
+  // Caption. The role's own 段前/段后 are what reach `w:spacing`: hardcoding
+  // 120/60 here overwrote the template's `ub` (150/50), which is why the
+  // university's 段前1行 never appeared in the produced document.xml. A table with
+  // no caption gets no empty paragraph carrying that 段前 spacing.
+  const captionValue = captionText(block.number, block.caption);
+  const captionPara = captionValue
+    ? new Paragraph({
+        children: [styledRun(captionValue, captionStyle, true)],
+        alignment: mapAlignment(captionStyle.paragraph.alignment),
+        spacing: {
+          before: captionStyle.paragraph.spaceBefore,
+          after: captionStyle.paragraph.spaceAfter,
+          ...lineStyle(captionStyle, 312),
+        },
+      })
+    : undefined;
 
   // Header row
   const headerRow = new TableRow({
@@ -779,7 +825,8 @@ function renderTable(
   // Spacer after table
   const spacer = new Paragraph({ spacing: { line: 312 }, children: [] });
 
-  return [captionPara, table, spacer];
+  // The caption goes ahead of the table: 表题 sits above the table it names.
+  return captionPara ? [captionPara, table, spacer] : [table, spacer];
 }
 
 function getImageSize(buffer: Buffer): { width: number; height: number } | null {
@@ -904,11 +951,17 @@ function renderFigure(
         alignment: AlignmentType.CENTER,
         spacing: { before: 120, after: 120, line: 312 },
       });
-      const numberPrefix = block.number ? `${block.number}  ` : '';
+      // 图题 follows the figure and carries the role's own 段前/段后 (`u4`: 10/10
+      // for 0.1 行). The run used to be `${number}  ${caption}` with two spaces and
+      // a hardcoded 段后 120.
       const caption = new Paragraph({
-        children: [styledRun(numberPrefix + block.caption, captionStyle)],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 120, ...captionSpacing },
+        children: [styledRun(captionText(block.number, block.caption), captionStyle)],
+        alignment: mapAlignment(captionStyle.paragraph.alignment),
+        spacing: {
+          before: captionStyle.paragraph.spaceBefore,
+          after: captionStyle.paragraph.spaceAfter,
+          ...captionSpacing,
+        },
       });
       return [image, caption];
     } catch (error: unknown) {

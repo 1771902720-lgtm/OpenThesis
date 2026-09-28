@@ -291,7 +291,19 @@ function tokenize(markdown: string): MarkdownItem[] {
         data.push(headers.map((_, cellIndex) => row[cellIndex] ?? ''));
         index += 1;
       }
-      items.push({ kind: 'block', block: { type: 'table', caption: '', headers, data } });
+      // A caption line sits immediately above its table in most manuscripts.
+      // GFM has no caption syntax, so that paragraph *is* the caption — it used
+      // to be emitted as body text, which is why `表 3-1` came out 宋体 小四
+      // justified instead of the template's 黑体 五号 centred with 段前1行.
+      let caption = '';
+      const previous = items[items.length - 1];
+      if (previous?.kind === 'block' && previous.block.type === 'paragraph'
+          && /^(?:表|图)\s*[\dA-Za-z]/.test(previous.block.text)) {
+        // One space between the number and the title, however many the source had.
+        caption = previous.block.text.replace(/^((?:表|图)\s*[\dA-Za-z][\d.\-–—]*)\s+/, '$1 ');
+        items.pop();
+      }
+      items.push({ kind: 'block', block: { type: 'table', caption, headers, data } });
       continue;
     }
 
@@ -351,7 +363,65 @@ function tokenize(markdown: string): MarkdownItem[] {
     items.push({ kind: 'block', block: { type: 'paragraph', text: cleanInline(joinSoftLines(paragraph)) } });
   }
 
+  attachCaptionLines(items);
+
   return items;
+}
+
+/**
+ * A `表 N 标题` / `图 N 标题` line written as its own paragraph.
+ *
+ * The number and the title must be separated by one space, so a line that
+ * carries two (`表 2  40 m资格模型结果`) is normalised. Both 表3-1 and 表 3-1 are
+ * numbering an author chose, so the label keeps the shape it was written in. A
+ * body sentence that merely starts with the character (`图1表明…`) has no space
+ * after its number and is not a caption.
+ */
+const CAPTION_LINE = /^\s*([表图])([\s\u3000]*)([\dA-Za-z][\d.\-–—]*)[\s\u3000]+(\S[\s\S]*)$/;
+
+function captionLine(line: string): string | null {
+  const match = CAPTION_LINE.exec(line);
+  if (!match) return null;
+  const label = match[2] ? `${match[1]} ${match[3]}` : `${match[1]}${match[3]}`;
+  return `${label} ${match[4].trim()}`;
+}
+
+/**
+ * GFM has no caption syntax, so a manuscript writes 表题/图题 as a paragraph of
+ * their own. Attach each to the block it names — the table it precedes, the
+ * figure it follows — so the caption reaches its own style role, with the
+ * template's 段前/段后 and 黑体 五号 centred, instead of being rendered as body text.
+ *
+ * A table caption the tokenizer already absorbed is left alone, which keeps this
+ * pass idempotent.
+ */
+function attachCaptionLines(items: MarkdownItem[]): void {
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    if (item.kind !== 'block') continue;
+
+    if (item.block.type === 'table' && !item.block.caption) {
+      const previous = items[index - 1];
+      const title = previous?.kind === 'block' && previous.block.type === 'paragraph'
+        ? captionLine(previous.block.text)
+        : null;
+      if (title?.startsWith('表')) {
+        item.block.caption = title;
+        items.splice(index - 1, 1);
+        index -= 1;
+      }
+    } else if (item.block.type === 'figure') {
+      // An explicit 图题 line wins over the alt text, which is only a fallback.
+      const next = items[index + 1];
+      const title = next?.kind === 'block' && next.block.type === 'paragraph'
+        ? captionLine(next.block.text)
+        : null;
+      if (title?.startsWith('图')) {
+        item.block.caption = title;
+        items.splice(index + 1, 1);
+      }
+    }
+  }
 }
 
 function startsSpecialBlock(lines: string[], index: number): boolean {
