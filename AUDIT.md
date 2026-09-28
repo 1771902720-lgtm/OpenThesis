@@ -250,7 +250,7 @@ Measured against two authorities: `《北京科技大学研究生学位论文书
 | 特殊标题 (摘要/目录/序/附录/致谢/参考文献) | `w:line="579"` (2.41 倍), 340/330 — asserted in `tests/docx-renderer.test.mjs` |
 | 图题 / 表题 | 黑体 10.5pt centred; the table caption has its own role and spacing |
 | 参考文献条目 | 宋体 12pt, hanging 1cm, 10/10/312 |
-| 页码与篇眉 | three sections: the cover has no head and no number, the front matter is `upperRoman` from I, the body restarts at 1 in decimal. The heads come from the template's own `header*.xml` parts — odd pages 北京科技大学硕士学位论文, even pages the template's title — with the 篇眉 0.5 pt rule, and `<w:evenAndOddHeaders/>` reaches `settings.xml` |
+| 页码与篇眉 | three sections: the cover has no head and no number, the front matter is `upperRoman` from I, the body restarts at 1 in decimal. The heads come from the template's own `header*.xml` parts — odd pages 北京科技大学硕士学位论文, even pages the *document's* own title, since the text a template carries in that slot is its author's sample thesis — with the 篇眉 0.5 pt rule, and `<w:evenAndOddHeaders/>` reaches `settings.xml` |
 | 每节的页面设置 | each part carries its own `w:pgMar` (the template's cover footer distance is 851, the body's 850), `w:pgSz`, gutter and columns |
 | 封面三级样式 | `cover_title` / `cover_line` / `cover_meta` resolve from the template: 小二 18pt bold centred, 四号 14pt bold justified, 五号 10.5pt |
 | 目录 | a `type: "toc"` section emits the 目录 heading plus a real `TOC \h \o "1-3"` field |
@@ -284,11 +284,6 @@ engine, so it cannot know on which page a chapter lands.
    (`type="linesAndChars"` in the body); the writer library emits its own
    `linePitch="360"`, so a generated page will not break lines exactly where the
    template's does.
-7. **A template's even-page head is a literal.** `header4.xml` carries the sample
-   thesis's own title, so a generated document prints that title unless the
-   template writes `{title}` — which the renderer fills from the document being
-   rendered (`{organization}` and `{author}` too). Nothing is substituted that the
-   template did not ask for.
 
 ### Found by reading the template's own parts
 
