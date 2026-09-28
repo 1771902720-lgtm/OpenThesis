@@ -132,3 +132,69 @@ test('requires a closing code fence at least as long as its opener', () => {
     ]);
   }
 });
+
+test('leaves ordinary punctuation alone while still stripping real emphasis', () => {
+  // `(\*|_)(.*?)\1` treated any two delimiters as a pair, so these were mangled.
+  assert.deepEqual(parseMarkdownBlocks('my_file_name and other_thing'), [
+    { type: 'paragraph', text: 'my_file_name and other_thing' },
+  ]);
+  assert.deepEqual(parseMarkdownBlocks('compute 2 * 3 * 4 now'), [
+    { type: 'paragraph', text: 'compute 2 * 3 * 4 now' },
+  ]);
+  // `<[^>]+>` also ate ordinary comparisons and every autolink.
+  assert.deepEqual(parseMarkdownBlocks('if a < b > c then'), [
+    { type: 'paragraph', text: 'if a < b > c then' },
+  ]);
+  assert.deepEqual(parseMarkdownBlocks('see <https://example.com/x> here'), [
+    { type: 'paragraph', text: 'see https://example.com/x here' },
+  ]);
+  assert.deepEqual(parseMarkdownBlocks('this is *italic* and **bold**'), [
+    { type: 'paragraph', text: 'this is italic and bold' },
+  ]);
+  assert.deepEqual(parseMarkdownBlocks('an _emphasised_ word'), [
+    { type: 'paragraph', text: 'an emphasised word' },
+  ]);
+});
+
+test('keeps a trailing hash that is not a closing sequence', () => {
+  // CommonMark needs a space before the closing `#` run, so `# C#` keeps it.
+  assert.equal(parseMarkdown('# C#\n\nbody').meta.title, 'C#');
+  assert.equal(parseMarkdown('# Title ##\n\nbody').meta.title, 'Title');
+});
+
+test('reads a front-matter block sequence', () => {
+  const document = parseMarkdown(`---
+title: T
+keywords:
+  - alpha
+  - beta
+---
+# Demo`, { documentType: 'journal' });
+  // These items used to be skipped entirely and the key silently became "".
+  assert.deepEqual(document.meta.keywords, ['alpha', 'beta']);
+});
+
+test('keeps a comma inside a quoted list element', () => {
+  const document = parseMarkdown(`---
+title: T
+keywords: ["a, b", c]
+---
+# Demo`, { documentType: 'journal' });
+  assert.deepEqual(document.meta.keywords, ['a, b', 'c']);
+});
+
+test('detects a single-column table', () => {
+  assert.deepEqual(parseMarkdownBlocks('| A |\n| --- |\n| 1 |'), [
+    { type: 'table', caption: '', headers: ['A'], data: [['1']] },
+  ]);
+});
+
+test('accepts an extended fence info string', () => {
+  const blocks = parseMarkdownBlocks('```js title=x\nconst a = 1;\n```\n\nafter paragraph');
+  // The old `[\w.+-]*` info-string pattern failed to match, so the opener
+  // became a paragraph and the closing fence swallowed the rest of the file.
+  assert.deepEqual(blocks, [
+    { type: 'code_block', text: 'const a = 1;', language: 'js title=x' },
+    { type: 'paragraph', text: 'after paragraph' },
+  ]);
+});

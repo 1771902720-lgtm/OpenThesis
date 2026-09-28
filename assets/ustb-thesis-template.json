@@ -23,796 +23,292 @@
   },
   "styles": {
     "1": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "2": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "3": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "10": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "11": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "12": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "15": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "100": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a0": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a1": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a2": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u1": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a3": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a4": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a6": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "TOC3": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a7": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a8": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "aa": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "ac": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "TOC1": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "ae": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "TOC2": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af1": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af2": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af3": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af4": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u5": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u2": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u3": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af5": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "Default": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "b1": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "b": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "b0": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "b2": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af6": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af7": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af8": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u6": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af9": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "afa": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "afb": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "afc": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "z": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "P4": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u7": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "uChar": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u8": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u9": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "ua": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "uChar1": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "uChar0": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u4": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "ub": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "u0": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a5": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "af0": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "a9": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "z0": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "z1": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "z2": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "afd": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "TOC10": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "ab": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "MTConvertedEquation": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "ad": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "afe": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     },
     "aff": {
-      "font": {
-        "name": "Times New Roman",
-        "eastAsia": "宋体",
-        "size": 24
-      },
-      "paragraph": {
-        "alignment": "justified",
-        "firstLineIndent": 0
-      }
+      "font": {},
+      "paragraph": {}
     }
   },
   "styleRoles": {

@@ -24,7 +24,7 @@ export interface DocumentTemplate {
   meta: TemplateMeta;
   page: PageSettings;
   styles: Record<string, ParagraphStyle>;
-  styleRoles: Record<string, BlockType>;
+  styleRoles: Record<string, StyleRole>;
   styleInheritance?: Record<string, string>;
   documentType?: DocumentType;
 }
@@ -62,10 +62,16 @@ export interface ParagraphStyle {
   lineSpacing?: number;
 }
 
+/**
+ * Run-level formatting. Every field is optional: a parsed template only
+ * declares what it actually specifies. The renderer fills the gaps from the
+ * semantic-role defaults, so "the template is silent" stays distinguishable
+ * from "the template explicitly asks for 12pt".
+ */
 export interface FontSettings {
-  name: string;
-  eastAsia: string;
-  size: number;         // half-points (24 = 12pt)
+  name?: string;
+  eastAsia?: string;
+  size?: number;        // half-points (24 = 12pt)
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
@@ -73,7 +79,7 @@ export interface FontSettings {
 }
 
 export interface ParagraphFormatting {
-  alignment: 'left' | 'center' | 'right' | 'justified' | 'distribute';
+  alignment?: 'left' | 'center' | 'right' | 'justified' | 'distribute';
   firstLineIndent?: number;
   leftIndent?: number;
   rightIndent?: number;
@@ -99,6 +105,12 @@ export type BlockType =
   | 'signature_block' | 'attachment_note';
 
 export interface BaseBlock { type: BlockType; id?: string; }
+
+/**
+ * Semantic style roles. Every content block type doubles as a role, plus two
+ * roles that have no block of their own: table headers and figure captions.
+ */
+export type StyleRole = BlockType | 'table_header' | 'figure_caption';
 
 export interface HeadingBlock extends BaseBlock {
   type: 'heading1' | 'heading2' | 'heading3' | 'heading4';

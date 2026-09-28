@@ -93,6 +93,8 @@ interface RawStyle {
   styleId: string;
   name: string;
   type: 'paragraph' | 'character' | 'table' | 'numbering';
+  /** True for the `w:default="1"` style of its type (usually Normal/正文). */
+  default?: boolean;
   basedOn?: string;
   /** Paragraph properties */
   pPr?: RawParagraphProps;
@@ -131,14 +133,24 @@ function extractRawStyles(parsed: any): Record<string, RawStyle> {
 
     const type = el['@_w:type'] || 'paragraph';
     const basedOn = el['w:basedOn']?.['@_w:val'];
+    const pPrEl = firstElement(el['w:pPr']);
+
+    // Chinese Word/WPS templates routinely put run properties (黑体, 三号, …)
+    // inside `w:pPr/w:rPr` instead of a style-level `w:rPr`. Reading only the
+    // direct child silently dropped them, which made every style look empty.
+    // A style-level `w:rPr` wins when both are present.
+    const nestedRPr = extractRunProps(pPrEl?.['w:rPr']);
+    const directRPr = extractRunProps(el['w:rPr']);
+    const rPr = mergeRunProps(nestedRPr, directRPr);
 
     const raw: RawStyle = {
       styleId,
       name: el['w:name']?.['@_w:val'] || styleId,
       type,
+      default: el['@_w:default'] === '1' || el['@_w:default'] === 'true',
       basedOn,
-      pPr: extractParagraphProps(el['w:pPr']),
-      rPr: extractRunProps(el['w:rPr']),
+      pPr: extractParagraphProps(el['w:pPr'], rPr?.fontSize),
+      rPr,
     };
 
     styles[styleId] = raw;
@@ -148,7 +160,7 @@ function extractRawStyles(parsed: any): Record<string, RawStyle> {
   const docDefaults = parsed?.['w:styles']?.['w:docDefaults'];
   if (docDefaults) {
     const defaultRPr = extractRunProps(docDefaults['w:rPrDefault']?.['w:rPr']);
-    const defaultPPr = extractParagraphProps(docDefaults['w:pPrDefault']?.['w:pPr']);
+    const defaultPPr = extractParagraphProps(docDefaults['w:pPrDefault']?.['w:pPr'], defaultRPr?.fontSize);
     styles['_defaults'] = {
       styleId: '_defaults',
       name: 'Document Defaults',
@@ -161,7 +173,13 @@ function extractRawStyles(parsed: any): Record<string, RawStyle> {
   return styles;
 }
 
-function extractParagraphProps(pPr: any): RawParagraphProps | undefined {
+/** Merge two run-property bags; `override` wins. Keys are only present when set. */
+function mergeRunProps(base?: RawRunProps, override?: RawRunProps): RawRunProps | undefined {
+  if (!base && !override) return undefined;
+  return { ...base, ...override };
+}
+
+function extractParagraphProps(pPr: any, runSize?: number): RawParagraphProps | undefined {
   pPr = firstElement(pPr);
   if (!pPr) return undefined;
 
@@ -171,16 +189,30 @@ function extractParagraphProps(pPr: any): RawParagraphProps | undefined {
   const jc = pPr['w:jc']?.['@_w:val'];
   if (jc) props.alignment = jc;
 
-  // Indentation
+  // Indentation. `w:firstLineChars` / `w:leftChars` / `w:rightChars` are
+  // hundredths of a *character*, not twips, and Chinese templates emit them
+  // constantly. Converting needs the run size: twips = chars × halfPoints / 10.
   const ind = pPr['w:ind'];
   if (ind) {
     props.indent = {};
-    const firstLine = parseInt(ind['@_w:firstLine'] || ind['@_w:firstLineChars']);
-    const left = parseInt(ind['@_w:left'] || ind['@_w:leftChars']);
-    const right = parseInt(ind['@_w:right'] || ind['@_w:rightChars']);
+    const effectiveSize = runSize && runSize > 0 ? runSize : 24; // 12pt fallback
+    const charsToTwips = (chars: number) => Math.round((chars * effectiveSize) / 10);
+
+    const firstLine = parseInt(ind['@_w:firstLine']);
+    const firstLineChars = parseInt(ind['@_w:firstLineChars']);
+    const left = parseInt(ind['@_w:left']);
+    const leftChars = parseInt(ind['@_w:leftChars']);
+    const right = parseInt(ind['@_w:right']);
+    const rightChars = parseInt(ind['@_w:rightChars']);
+
     if (!isNaN(firstLine)) props.indent.firstLine = firstLine;
+    else if (!isNaN(firstLineChars)) props.indent.firstLine = charsToTwips(firstLineChars);
+
     if (!isNaN(left)) props.indent.left = left;
+    else if (!isNaN(leftChars)) props.indent.left = charsToTwips(leftChars);
+
     if (!isNaN(right)) props.indent.right = right;
+    else if (!isNaN(rightChars)) props.indent.right = charsToTwips(rightChars);
   }
 
   // Spacing
@@ -342,38 +374,54 @@ function buildInheritanceMap(raw: Record<string, RawStyle>): Record<string, stri
 
 // ── Style Conversion ──────────────────────────────────────
 
+/** Drop keys whose value is `undefined` so the JSON stays honest and compact. */
+function definedOnly<T extends object>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, v]) => v !== undefined),
+  ) as T;
+}
+
+/**
+ * Convert resolved OOXML style properties into the public ParagraphStyle shape.
+ *
+ * Only properties the template actually declares are emitted. Inventing
+ * fallbacks here (the previous `|| 24` / `|| '宋体'` / `?? 0`) made a silent
+ * template indistinguishable from one that explicitly asked for 12pt 宋体,
+ * which is why every style in a formatting-free template looked identical and
+ * headings ended up rendered as body text.
+ */
 function rawToParagraphStyle(raw: RawStyle): ParagraphStyle {
-  return {
-    font: {
-      name: raw.rPr?.fontName || 'Times New Roman',
-      eastAsia: raw.rPr?.eastAsiaFont || '宋体',
-      size: raw.rPr?.fontSize || 24,  // default 12pt if not specified
+  return definedOnly({
+    font: definedOnly({
+      name: raw.rPr?.fontName,
+      eastAsia: raw.rPr?.eastAsiaFont,
+      size: raw.rPr?.fontSize,
       bold: raw.rPr?.bold,
       italic: raw.rPr?.italic,
       underline: raw.rPr?.underline,
       color: raw.rPr?.color,
-    },
-    paragraph: {
+    }),
+    paragraph: definedOnly({
       alignment: mapAlignment(raw.pPr?.alignment),
-      firstLineIndent: raw.pPr?.indent?.firstLine ?? 0,
+      firstLineIndent: raw.pPr?.indent?.firstLine,
       leftIndent: raw.pPr?.indent?.left,
       rightIndent: raw.pPr?.indent?.right,
       spaceBefore: raw.pPr?.spacing?.before,
       spaceAfter: raw.pPr?.spacing?.after,
       outlineLevel: raw.pPr?.outlineLvl,
-    },
+    }),
     lineSpacing: raw.pPr?.spacing?.line,
-  };
+  });
 }
 
-function mapAlignment(align?: string): ParagraphFormatting['alignment'] {
+function mapAlignment(align?: string): ParagraphFormatting['alignment'] | undefined {
   switch (align) {
     case 'left': return 'left';
     case 'center': return 'center';
     case 'right': return 'right';
     case 'both': return 'justified';
     case 'distribute': return 'distribute';
-    default: return 'justified';
+    default: return undefined;
   }
 }
 
@@ -463,7 +511,10 @@ function detectStyleRoles(
 ): Record<string, BlockType> {
   const roles: Record<string, BlockType> = {};
 
-  // Heuristic patterns for common Chinese thesis style naming
+  // Heuristic patterns for common Chinese thesis style naming.
+  // Patterns are anchored on purpose: the previous unanchored `/^(表|Table|题注)/`
+  // also matched Word's built-in `TableGrid` ("Table Grid") and
+  // "Table of Contents", turning table and TOC styles into level-3 headings.
   const patterns: Array<{ regex: RegExp; role: BlockType }> = [
     // Chapter titles
     { regex: /^(标题\s*1|Heading\s*1|Chapter|第.*章|h1|标题1|章标题)$/i, role: 'heading1' },
@@ -476,13 +527,27 @@ function detectStyleRoles(
     { regex: /^(正文|Normal|Body|body\s*text|正文文本|普通)$/i, role: 'paragraph' },
     // Cover title
     { regex: /^(封面|Cover|Title|论文题目|题目)$/i, role: 'centered_text' },
-    // Table caption
-    { regex: /^(表|Table|题注)/i, role: 'heading3' },
+    // Equation styles — MathType emits "MT Converted Equation", WPS emits "公式".
+    // Without this, no template style ever drove `equation` and every formula
+    // silently fell back to the built-in defaults.
+    { regex: /^(公式|Equation|MT\s*Converted\s*Equation|Math\s*Equation)$/i, role: 'equation' },
   ];
+
+  // Unmatched paragraph styles still act as body text, but they are appended
+  // after every explicit match so that the renderer's first-match lookup picks
+  // a style that actually declares a body-text role.
+  const defaultParagraph: string[] = [];
+  const otherParagraph: string[] = [];
 
   for (const name of styleNames) {
     const raw = styles[name];
     if (!raw) continue;
+
+    // Character, table and numbering styles are not paragraph-level blocks.
+    // Assigning them a block role made `resolveStyle` pick whichever style
+    // happened to appear first in the XML — e.g. `uChar` (a character style)
+    // or `TOC3` supplying the body-text formatting.
+    if (raw.type !== 'paragraph') continue;
 
     let matched = false;
     for (const { regex, role } of patterns) {
@@ -492,21 +557,22 @@ function detectStyleRoles(
         break;
       }
     }
+    if (matched) continue;
 
     // Fallback: use outline level
-    if (!matched && raw.pPr?.outlineLvl !== undefined) {
+    if (raw.pPr?.outlineLvl !== undefined) {
       const lvl = raw.pPr.outlineLvl;
       if (lvl >= 0 && lvl <= 3) {
         roles[name] = `heading${lvl + 1}` as BlockType;
-        matched = true;
+        continue;
       }
     }
 
-    // Default: paragraph
-    if (!matched) {
-      roles[name] = 'paragraph';
-    }
+    (raw.default ? defaultParagraph : otherParagraph).push(name);
   }
+
+  for (const name of defaultParagraph) roles[name] = 'paragraph';
+  for (const name of otherParagraph) roles[name] = 'paragraph';
 
   return roles;
 }

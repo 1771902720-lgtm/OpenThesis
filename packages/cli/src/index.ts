@@ -9,7 +9,7 @@
 //   thesis init [--type thesis|journal|official]
 // ============================================================
 
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, realpathSync } from 'fs';
 import { resolve, dirname, extname, basename } from 'path';
 import { parseTemplate } from '@openthesis/template-parser';
 import { parseMarkdown } from '@openthesis/markdown-parser';
@@ -38,6 +38,7 @@ async function main() {
 // ── thesis import <content.md> ────────────────────────────
 
 function cmdImport(args: string[]) {
+  rejectUnknownFlags(args);
   if (args.length < 1) {
     console.error('Usage: thesis import <content.md> [--type thesis|journal|official] [-o <content.json>]');
     process.exit(1);
@@ -54,13 +55,13 @@ function cmdImport(args: string[]) {
     ? resolve(outputOption)
     : inputPath.slice(0, -extname(inputPath).length) + '.json';
 
-  if (outputPath === inputPath) {
+  if (isSamePath(outputPath, inputPath)) {
     console.error('Output path must be different from the Markdown input path.');
     process.exit(1);
   }
 
   try {
-    const document = parseMarkdown(readFileSync(inputPath, 'utf-8'), {
+    const document = parseMarkdown(readTextFile(inputPath), {
       documentType: typeOption ? validateDocType(typeOption) : undefined,
       sourceName: basename(inputPath, extname(inputPath)),
     });
@@ -77,6 +78,7 @@ function cmdImport(args: string[]) {
 // ── thesis parse <template.docx> ──────────────────────────
 
 async function cmdParse(args: string[]) {
+  rejectUnknownFlags(args);
   if (args.length < 1) {
     console.error('Usage: thesis parse <template.docx> [--type thesis|journal|official] [--org <name>]');
     process.exit(1);
@@ -116,8 +118,13 @@ async function cmdParse(args: string[]) {
     console.log(`\n   Style roles:`);
     for (const [styleId, role] of Object.entries(template.styleRoles)) {
       const style = template.styles[styleId];
+      // A style only declares the properties its template actually specifies,
+      // so every field here is optional.
       const fontInfo = style
-        ? `${style.font.eastAsia || style.font.name} ${style.font.size / 2}pt`
+        ? [
+            style.font.eastAsia || style.font.name || '(default font)',
+            style.font.size ? `${style.font.size / 2}pt` : '(default size)',
+          ].join(' ')
         : '—';
       console.log(`     ${styleId} → ${role} (${fontInfo})`);
     }
@@ -127,6 +134,7 @@ async function cmdParse(args: string[]) {
   }
 }
 async function cmdBuild(args: string[]) {
+  rejectUnknownFlags(args);
   if (args.length < 1) {
     console.error('Usage: thesis build <content.json|content.md> [-t <template.json>] [-o <output.docx>] [--type thesis|journal|official]');
     process.exit(1);
@@ -143,8 +151,12 @@ async function cmdBuild(args: string[]) {
       ? contentPath.slice(0, -extname(contentPath).length) + '.docx'
       : contentPath + '.docx';
 
-  if (outputPath === contentPath) {
+  if (isSamePath(outputPath, contentPath)) {
     console.error('Output path must be different from the content input path.');
+    process.exit(1);
+  }
+  if (templatePath && isSamePath(outputPath, templatePath)) {
+    console.error('Output path must be different from the template path.');
     process.exit(1);
   }
 
@@ -154,7 +166,7 @@ async function cmdBuild(args: string[]) {
 
   try {
     const isMarkdown = isMarkdownPath(contentPath);
-    const source = readFileSync(contentPath, 'utf-8');
+    const source = readTextFile(contentPath);
     const contentJson = isMarkdown
       ? parseMarkdown(source, {
           documentType: typeOption ? validateDocType(typeOption) : undefined,
@@ -165,7 +177,7 @@ async function cmdBuild(args: string[]) {
 
     let template: DocumentTemplate;
     if (templatePath) {
-      template = JSON.parse(readFileSync(templatePath, 'utf-8'));
+      template = JSON.parse(readTextFile(templatePath));
     } else {
       console.log('  Using built-in USTB template...');
       template = createUSTBTemplate();
@@ -205,8 +217,10 @@ async function cmdBuild(args: string[]) {
 // ── thesis init [--type thesis|journal|official] ───────────
 
 function cmdInit(args: string[]) {
-  const typeIdx = args.indexOf('--type');
-  const docType = validateDocType(typeIdx >= 0 ? args[typeIdx + 1] : 'thesis');
+  rejectUnknownFlags(args);
+  // Shared with every other command so `init --type=journal` works too; the
+  // old `args.indexOf('--type')` lookup silently produced a thesis sample.
+  const docType = validateDocType(readOption(args, '--type') ?? 'thesis');
 
   switch (docType) {
     case 'thesis':   createThesisSample(); break;
@@ -388,7 +402,28 @@ function printInitNext(type: DocumentType) {
 
 const VALID_DOC_TYPES: DocumentType[] = ['thesis', 'journal', 'official'];
 
+/** Options the CLI understands; anything else on the command line is a typo. */
+const VALUE_FLAGS = ['--type', '-t', '-o', '--org'];
+const KNOWN_FLAGS = new Set([...VALUE_FLAGS, '--help', '-h']);
+
+/**
+ * Read an option written either as `--flag value` or `--flag=value`.
+ *
+ * The `=` form used to be ignored outright: `build x.md --type=official` fell
+ * back to the front-matter type and exited 0, so the flag silently did nothing.
+ */
 function readOption(args: string[], flag: string): string | undefined {
+  const inlinePrefix = `${flag}=`;
+  const inline = args.find(arg => arg.startsWith(inlinePrefix));
+  if (inline !== undefined) {
+    const value = inline.slice(inlinePrefix.length);
+    if (!value) {
+      console.error(`Missing value for ${flag}.`);
+      process.exit(1);
+    }
+    return value;
+  }
+
   const index = args.indexOf(flag);
   if (index < 0) return undefined;
   const value = args[index + 1];
@@ -397,6 +432,44 @@ function readOption(args: string[], flag: string): string | undefined {
     process.exit(1);
   }
   return value;
+}
+
+/** Fail loudly on unknown `-`/`--` tokens instead of quietly ignoring them. */
+function rejectUnknownFlags(args: string[]): void {
+  for (const arg of args) {
+    if (!arg.startsWith('-') || arg === '-') continue;
+    const name = arg.includes('=') ? arg.slice(0, arg.indexOf('=')) : arg;
+    if (!KNOWN_FLAGS.has(name)) {
+      console.error(`Unknown option: ${name}`);
+      console.error(`Known options: ${[...KNOWN_FLAGS].join(', ')}`);
+      process.exit(1);
+    }
+  }
+}
+
+/**
+ * True when two paths refer to the same file.
+ *
+ * Windows and macOS filesystems are case-insensitive, so the previous plain
+ * string comparison let `import a.md -o a.MD` overwrite the Markdown source
+ * with the JSON it had just produced.
+ */
+function isSamePath(a: string, b: string): boolean {
+  const normalize = (p: string) => {
+    const resolved = resolve(p);
+    try {
+      return realpathSync.native(resolved).toLowerCase();
+    } catch {
+      // Output paths usually do not exist yet.
+      return resolved.toLowerCase();
+    }
+  };
+  return normalize(a) === normalize(b);
+}
+
+/** Read UTF-8 text, dropping a BOM that would otherwise break JSON.parse. */
+function readTextFile(path: string): string {
+  return readFileSync(path, 'utf-8').replace(/^\uFEFF/, '');
 }
 
 function errorMessage(error: unknown): string {

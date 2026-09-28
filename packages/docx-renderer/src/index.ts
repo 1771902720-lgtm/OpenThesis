@@ -25,7 +25,7 @@ import type {
   OfficialDocument,
   ContentBlock,
   ParagraphStyle,
-  BlockType,
+  StyleRole,
   LegacyDocumentJSON,
   OpenThesisDocument,
   HeadingBlock,
@@ -71,17 +71,81 @@ export interface RenderOptions {
   contentDir?: string;
 }
 
-// ── Default Fallback Styles (when template lacks a role) ──
+// ── Fallback Styles ───────────────────────────────────────
+//
+// These are consulted only for properties a parsed template does not declare.
+// The two domains genuinely differ — a 学位论文 body is 宋体 小四 with a 2-character
+// first-line indent, while a 公文 body is 仿宋 三号 per GB/T 9704-2012 — so a single
+// shared table made thesis output inherit official-document typography.
 
-const DEFAULT_STYLES: Record<string, ParagraphStyle> = {
+const THESIS_STYLES: Record<string, ParagraphStyle> = {
   heading1: {
-    // GB/T 9704-2012: 一级标题用3号黑体（16pt）
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 32, bold: true },
+    paragraph: { alignment: 'center', spaceBefore: 240, spaceAfter: 240 },
+    lineSpacing: 360,
+  },
+  heading2: {
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 28, bold: true },
+    paragraph: { alignment: 'left', spaceBefore: 240, spaceAfter: 120 },
+    lineSpacing: 360,
+  },
+  heading3: {
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 24, bold: true },
+    paragraph: { alignment: 'left', spaceBefore: 180, spaceAfter: 120 },
+    lineSpacing: 360,
+  },
+  heading4: {
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 24, bold: true },
+    paragraph: { alignment: 'left', spaceBefore: 120, spaceAfter: 60 },
+    lineSpacing: 360,
+  },
+  paragraph: {
+    font: { name: 'Times New Roman', eastAsia: '宋体', size: 24 },
+    paragraph: { alignment: 'justified', firstLineIndent: 480 },
+    lineSpacing: 360,
+  },
+  paragraph_no_indent: {
+    font: { name: 'Times New Roman', eastAsia: '宋体', size: 24 },
+    paragraph: { alignment: 'justified' },
+    lineSpacing: 360,
+  },
+  centered_text: {
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 30, bold: true },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 360,
+  },
+  equation: {
+    font: { name: 'Times New Roman', eastAsia: '宋体', size: 24 },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 360,
+  },
+  table: {
+    font: { name: 'Times New Roman', eastAsia: '宋体', size: 21 },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 276,
+  },
+  table_header: {
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 21, bold: true },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 276,
+  },
+  figure_caption: {
+    font: { name: 'Times New Roman', eastAsia: '宋体', size: 21 },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 276,
+  },
+};
+
+const OFFICIAL_STYLES: Record<string, ParagraphStyle> = {
+  // GB/T 9704-2012《党政机关公文格式》
+  heading1: {
+    // 一级标题用3号黑体（16pt）
     font: { name: 'Times New Roman', eastAsia: '黑体', size: 32, bold: true },
     paragraph: { alignment: 'left', spaceBefore: 340, spaceAfter: 340 },
     lineSpacing: 312,
   },
   heading2: {
-    // GB/T 9704-2012: 二级标题用3号楷体（16pt）
+    // 二级标题用3号楷体（16pt）
     font: { name: 'Times New Roman', eastAsia: '楷体', size: 32, bold: true },
     paragraph: { alignment: 'left', spaceBefore: 260, spaceAfter: 260 },
     lineSpacing: 312,
@@ -91,14 +155,18 @@ const DEFAULT_STYLES: Record<string, ParagraphStyle> = {
     paragraph: { alignment: 'left', spaceBefore: 200, spaceAfter: 200 },
     lineSpacing: 312,
   },
+  heading4: {
+    font: { name: 'Times New Roman', eastAsia: '楷体', size: 28, bold: true },
+    paragraph: { alignment: 'left', spaceBefore: 160, spaceAfter: 160 },
+    lineSpacing: 312,
+  },
   paragraph: {
-    // GB/T 9704-2012: 正文用3号仿宋体（16pt）
+    // 正文用3号仿宋体（16pt）
     font: { name: 'Times New Roman', eastAsia: '仿宋', size: 32 },
     paragraph: { alignment: 'justified', firstLineIndent: convertMillimetersToTwip(7.4) },
     lineSpacing: 312,
   },
   paragraph_no_indent: {
-    // GB/T 9704-2012: 正文用3号仿宋体（16pt）
     font: { name: 'Times New Roman', eastAsia: '仿宋', size: 32 },
     paragraph: { alignment: 'left' },
     lineSpacing: 312,
@@ -113,32 +181,65 @@ const DEFAULT_STYLES: Record<string, ParagraphStyle> = {
     paragraph: { alignment: 'center' },
     lineSpacing: 312,
   },
+  table: {
+    font: { name: 'Times New Roman', eastAsia: '仿宋', size: 24 },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 276,
+  },
+  table_header: {
+    font: { name: 'Times New Roman', eastAsia: '黑体', size: 24, bold: true },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 276,
+  },
+  figure_caption: {
+    font: { name: 'Times New Roman', eastAsia: '仿宋', size: 24 },
+    paragraph: { alignment: 'center' },
+    lineSpacing: 276,
+  },
 };
 
 // ── Style Resolver ────────────────────────────────────────
 
+function fallbackStyles(docType?: string): Record<string, ParagraphStyle> {
+  return docType === 'official' ? OFFICIAL_STYLES : THESIS_STYLES;
+}
+
+/** Drop keys whose value is `undefined` so they cannot shadow a fallback. */
+function definedOnly<T extends object>(value: T | undefined): Partial<T> {
+  if (!value) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(([, v]) => v !== undefined),
+  ) as Partial<T>;
+}
+
 /**
- * Resolve the ParagraphStyle for a given block type.
- * Priority: template.styles → defaults
- * For official documents, always use GB/T 9704-2012 DEFAULT_STYLES (ignore thesis template).
+ * Resolve the effective ParagraphStyle for a semantic role.
+ *
+ * The template wins for every property it actually declares; properties it
+ * leaves unset fall back to the domain defaults. Merging per property rather
+ * than per object is what lets a template that carries no formatting still
+ * produce correctly styled headings instead of body text.
  */
-function resolveStyle(template: DocumentTemplate, blockType: BlockType, docType?: string): ParagraphStyle {
-  // 公文强制使用 GB/T 9704-2012 标准，不走论文模板样式
-  if (docType === 'official') {
-    return DEFAULT_STYLES[blockType] || DEFAULT_STYLES['paragraph'];
-  }
+function resolveStyle(template: DocumentTemplate, role: StyleRole, docType?: string): ParagraphStyle {
+  const defaults = fallbackStyles(docType);
+  const fallback = defaults[role] || defaults['paragraph'];
+
+  // 公文 follows GB/T 9704-2012 regardless of the supplied thesis template.
+  if (docType === 'official') return fallback;
 
   // Look up via role mapping
-  const styleId = Object.entries(template.styleRoles).find(
-    ([, role]) => role === blockType,
+  const styleId = Object.entries(template.styleRoles ?? {}).find(
+    ([, assigned]) => assigned === role,
   )?.[0];
+  const fromTemplate = styleId ? template.styles?.[styleId] : undefined;
 
-  if (styleId && template.styles[styleId]) {
-    return template.styles[styleId];
-  }
+  if (!fromTemplate) return fallback;
 
-  // Fallback
-  return DEFAULT_STYLES[blockType] || DEFAULT_STYLES['paragraph'];
+  return {
+    font: { ...fallback.font, ...definedOnly(fromTemplate.font) },
+    paragraph: { ...fallback.paragraph, ...definedOnly(fromTemplate.paragraph) },
+    lineSpacing: fromTemplate.lineSpacing ?? fallback.lineSpacing,
+  };
 }
 
 // ── Block Renderers ───────────────────────────────────────
@@ -239,16 +340,22 @@ function renderCenteredText(
 }
 
 function renderEquation(
-  _template: DocumentTemplate,
+  template: DocumentTemplate,
   block: EquationBlock,
   docType?: string,
 ): Paragraph {
   // V3: emit native Office Math (OMML) for the supported LaTeX subset.
-  const style = resolveStyle(_template, 'equation', docType);
+  const style = resolveStyle(template, 'equation', docType);
   let equationChildren: MathComponent[];
   try {
     equationChildren = mathComponents(latexToMathAst(block.latex));
-  } catch {
+  } catch (error: unknown) {
+    // Falling back to Unicode is fine, but silently swallowing the reason made
+    // unsupported LaTeX indistinguishable from a rendering bug.
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `Falling back to plain text for equation "${block.latex}": ${message}`,
+    );
     equationChildren = [new MathRun(latexToPlainText(block.latex))];
   }
 
@@ -256,12 +363,12 @@ function renderEquation(
   if (block.number) {
     children.push(new TextRun({
       text: `    (${block.number})`,
-      size: style.font.size || 24,
+      size: style.font.size,
       font: {
-        ascii: style.font.name || 'Times New Roman',
-        hAnsi: style.font.name || 'Times New Roman',
-        eastAsia: style.font.eastAsia || '仿宋',
-        cs: style.font.name || 'Times New Roman',
+        ascii: style.font.name,
+        hAnsi: style.font.name,
+        eastAsia: style.font.eastAsia,
+        cs: style.font.name,
       },
     }));
   }
@@ -269,7 +376,7 @@ function renderEquation(
   return new Paragraph({
     children,
     alignment: AlignmentType.CENTER,
-    spacing: { before: 120, after: 120, line: style.lineSpacing || 312 },
+    spacing: { before: 120, after: 120, line: style.lineSpacing ?? 312 },
   });
 }
 
@@ -362,6 +469,13 @@ function mathComponents(nodes: LatexMathNode[]): MathComponent[] {
         return node.opening || node.closing
           ? mathDelimiter(node.opening, node.closing, [matrix])
           : matrix;
+      }
+      default: {
+        // Without this the switch fell through to `undefined`, which then
+        // landed in the OMML children array and produced invalid Office Math
+        // instead of an error the caller could see.
+        const unknown = node as { type?: unknown };
+        throw new Error(`Unsupported math node type: "${String(unknown.type)}"`);
       }
     }
   });
@@ -466,25 +580,58 @@ function mathNary(operator: string, subScript?: LatexMathNode[], superScript?: L
   }));
 }
 
+/** Build a run that inherits the resolved style's font settings. */
+function styledRun(text: string, style: ParagraphStyle, forceBold?: boolean): TextRun {
+  return new TextRun({
+    text,
+    bold: forceBold ?? style.font.bold,
+    italics: style.font.italic,
+    color: style.font.color,
+    size: style.font.size,
+    font: {
+      ascii: style.font.name,
+      hAnsi: style.font.name,
+      eastAsia: style.font.eastAsia,
+      cs: style.font.name,
+    },
+  });
+}
+
 function renderTable(
-  _template: DocumentTemplate,
+  template: DocumentTemplate,
   block: TableBlock,
+  docType?: string,
 ): [Paragraph, Table, Paragraph] {
   const colCount = block.headers.length;
   if (colCount === 0) {
     throw new Error(`Table "${block.caption}" must define at least one header column.`);
   }
-  const totalWidth = 8504; // A4 printable width in DXA
   if (block.columnWidths && block.columnWidths.length !== colCount) {
     throw new Error(`Table "${block.caption}" has ${colCount} columns but ${block.columnWidths.length} column widths.`);
   }
   if (block.columnWidths?.some(width => !Number.isFinite(width) || width <= 0)) {
     throw new Error(`Table "${block.caption}" column widths must be positive numbers.`);
   }
+
+  // Fit the table to the template's printable width rather than a hardcoded A4
+  // constant: on a narrower page (or with wider margins) every table used to
+  // overflow the right margin, because the cell widths always summed to 8504.
+  const page = template.page;
+  const printableWidth = Math.max(
+    1200,
+    (page?.width ?? 11906) - (page?.margins?.left ?? 0) - (page?.margins?.right ?? 0),
+  );
   const colWidths = block.columnWidths ?? Array.from(
     { length: colCount },
-    () => Math.floor(totalWidth / colCount),
+    () => Math.floor(printableWidth / colCount),
   );
+  const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+
+  // Table typography comes from the template like every other block, so a
+  // template that styles its tables is no longer silently ignored.
+  const captionStyle = resolveStyle(template, 'figure_caption', docType);
+  const headerStyle = resolveStyle(template, 'table_header', docType);
+  const bodyStyle = resolveStyle(template, 'table', docType);
 
   const showGrid = block.showGridlines !== false;
   const showShading = block.headerShading !== false;
@@ -495,16 +642,9 @@ function renderTable(
 
   // Caption
   const captionPara = new Paragraph({
-    children: [
-      new TextRun({
-        text: block.caption,
-        bold: true,
-        size: 21,
-        font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' },
-      }),
-    ],
+    children: [styledRun(block.caption, captionStyle, true)],
     alignment: AlignmentType.CENTER,
-    spacing: { before: 120, after: 60, line: 312 },
+    spacing: { before: 120, after: 60, line: captionStyle.lineSpacing ?? 312 },
   });
 
   // Header row
@@ -524,16 +664,9 @@ function renderTable(
         shading: showShading ? { fill: 'D9D9D9', type: ShadingType.SOLID, color: 'auto' } : undefined,
         children: [
           new Paragraph({
-            children: [
-              new TextRun({
-                text: h,
-                bold: true,
-                size: 21,
-                font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '黑体', cs: 'Times New Roman' },
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 40, after: 40 },
+            children: [styledRun(h, headerStyle, true)],
+            alignment: mapAlignment(headerStyle.paragraph.alignment),
+            spacing: { before: 40, after: 40, line: headerStyle.lineSpacing },
           }),
         ],
       }),
@@ -557,15 +690,9 @@ function renderTable(
           },
           children: [
             new Paragraph({
-              children: [
-                new TextRun({
-                  text: row[ci] ?? '',
-                  size: 21,
-                  font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
-                }),
-              ],
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 20, after: 20 },
+              children: [styledRun(row[ci] ?? '', bodyStyle)],
+              alignment: mapAlignment(bodyStyle.paragraph.alignment),
+              spacing: { before: 20, after: 20, line: bodyStyle.lineSpacing },
             }),
           ],
         }),
@@ -574,7 +701,9 @@ function renderTable(
   });
 
   const table = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    // Declare the same total the cells declare; a 100% table width alongside
+    // absolute cell widths is contradictory OOXML.
+    width: { size: tableWidth, type: WidthType.DXA },
     borders: showGrid ? {
       top: BO, bottom: BO, left: BO, right: BO,
       insideHorizontal: BI, insideVertical: BI,
@@ -643,9 +772,10 @@ function detectImageType(buffer: Buffer): 'png' | 'jpg' | 'gif' | 'bmp' | null {
 }
 
 function renderFigure(
-  _template: DocumentTemplate,
+  template: DocumentTemplate,
   block: FigureBlock,
   contentDir?: string,
+  docType?: string,
 ): Paragraph[] {
   const ext = extname(block.path).toLowerCase();
   let type: 'png' | 'jpg' | 'gif' | 'bmp' = 'png';
@@ -658,6 +788,18 @@ function renderFigure(
     imgPath = resolve(contentDir, imgPath);
   }
 
+  const captionStyle = resolveStyle(template, 'figure_caption', docType);
+  const captionLine = captionStyle.lineSpacing ?? 312;
+
+  // ImageRun sizes are CSS pixels while the printable width is in twips
+  // (1pt = 20 twips, 1px = 0.75pt), so px = twips / 15.
+  const page = template.page;
+  const printableTwips = Math.max(
+    1200,
+    (page?.width ?? 11906) - (page?.margins?.left ?? 0) - (page?.margins?.right ?? 0),
+  );
+  const maxWidthPx = Math.floor(printableTwips / 15);
+
   if (existsSync(imgPath)) {
     try {
       const buffer = readFileSync(imgPath);
@@ -669,8 +811,8 @@ function renderFigure(
       
       if (size) {
         if (!width && !height) {
-          // Default to a max width of 450px while keeping aspect ratio
-          const targetWidth = Math.min(size.width, 450);
+          // Fit the printable page width while keeping the aspect ratio
+          const targetWidth = Math.min(size.width, maxWidthPx);
           const ratio = size.width / size.height;
           width = targetWidth;
           height = targetWidth / ratio;
@@ -682,7 +824,7 @@ function renderFigure(
           width = height * ratio;
         }
       } else {
-        width = width || 400;
+        width = width || Math.min(400, maxWidthPx);
         height = height || 300;
       }
 
@@ -702,13 +844,9 @@ function renderFigure(
       });
       const numberPrefix = block.number ? `${block.number}  ` : '';
       const caption = new Paragraph({
-        children: [new TextRun({
-          text: numberPrefix + block.caption,
-          size: 21,
-          font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
-        })],
+        children: [styledRun(numberPrefix + block.caption, captionStyle)],
         alignment: AlignmentType.CENTER,
-        spacing: { after: 120, line: 312 },
+        spacing: { after: 120, line: captionLine },
       });
       return [image, caption];
     } catch (error: unknown) {
@@ -721,13 +859,18 @@ function renderFigure(
     children: [
       new TextRun({
         text: `[图: ${block.caption} (未找到图片: ${block.path})]`,
-        size: 21,
-        font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
+        size: captionStyle.font.size,
+        font: {
+          ascii: captionStyle.font.name,
+          hAnsi: captionStyle.font.name,
+          eastAsia: captionStyle.font.eastAsia,
+          cs: captionStyle.font.name,
+        },
         italics: true,
       }),
     ],
     alignment: AlignmentType.CENTER,
-    spacing: { before: 120, after: 120, line: 312 },
+    spacing: { before: 120, after: 120, line: captionLine },
   })];
 }
 
@@ -941,10 +1084,10 @@ function processBlock(
       return [renderEquation(template, block, docType)];
 
     case 'table':
-      return renderTable(template, block);
+      return renderTable(template, block, docType);
 
     case 'figure':
-      return renderFigure(template, block, contentDir);
+      return renderFigure(template, block, contentDir, docType);
 
     case 'spacer':
       return renderSpacer(template, block.lines);
@@ -1576,7 +1719,7 @@ export async function renderLegacy(
 
 // ── Utility ───────────────────────────────────────────────
 
-function mapAlignment(align: string): (typeof AlignmentType)[keyof typeof AlignmentType] {
+function mapAlignment(align?: string): (typeof AlignmentType)[keyof typeof AlignmentType] {
   switch (align) {
     case 'center': return AlignmentType.CENTER;
     case 'left': return AlignmentType.LEFT;
@@ -1638,14 +1781,19 @@ export function createUSTBTemplate(): DocumentTemplate {
       },
     },
     styles: {
-      ...DEFAULT_STYLES,
+      ...THESIS_STYLES,
     },
     styleRoles: {
       'heading1': 'heading1',
       'heading2': 'heading2',
       'heading3': 'heading3',
+      'heading4': 'heading4',
       'Normal': 'paragraph',
       'CoverTitle': 'centered_text',
+      'Equation': 'equation',
+      'TableText': 'table',
+      'TableHeader': 'table_header',
+      'FigureCaption': 'figure_caption',
     },
   };
 }

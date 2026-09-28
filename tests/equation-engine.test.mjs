@@ -79,3 +79,41 @@ test('keeps scripts on function arguments distinct from scripts on function name
   assert.equal(functionScript.base[0].type, 'function');
   assert.deepEqual(functionScript.superScript, [{ type: 'run', text: '2' }]);
 });
+
+test('does not confuse a command with a longer command that starts the same way', () => {
+  // An ordered replace chain turned `\propto` into `Πto` and `\cdots` into `·s`.
+  assert.equal(latexToPlainText('\\propto'), '∝');
+  assert.equal(latexToPlainText('\\prod'), 'Π');
+  // Unknown commands survive intact rather than being silently mangled.
+  assert.equal(latexToPlainText('\\cdots'), '\\cdots');
+  assert.equal(latexToPlainText('\\simeq'), '\\simeq');
+});
+
+test('converts bare superscripts and subscripts to Unicode', () => {
+  assert.equal(latexToPlainText('x^2'), 'x²');
+  assert.equal(latexToPlainText('x_1'), 'x₁');
+  assert.equal(latexToPlainText('x^{2}'), 'x²');
+});
+
+test('handles nested braces in structural commands', () => {
+  // `[^}]+` cannot match nested braces, so this used to leak literal LaTeX.
+  assert.equal(latexToPlainText('\\frac{a_{1}}{b}'), '(a₁)/(b)');
+  assert.equal(latexToPlainText('\\sqrt{x_{1}}'), '√(x₁)');
+});
+
+test('keeps the spaces inside \\text and drops the insignificant one after it', () => {
+  const nodes = latexToMathAst('\\text{if } x>0');
+  // Adjacent runs merge, so the equation lands in a single run — the point is
+  // that the space survives instead of collapsing to "ifx>0".
+  assert.equal(nodes.map(node => node.text ?? '').join(''), 'if x>0');
+  assert.equal(latexToPlainText('\\text{if } x>0'), 'if x>0');
+  // A text group that does not end in a space still keeps the one after it.
+  assert.equal(latexToPlainText('\\text{if} x>0'), 'if x>0');
+});
+
+test('does not mistake \\leftarrow for \\left', () => {
+  const node = latexToMathAst('\\left( a \\leftarrow b \\right)')[0];
+  assert.equal(node.type, 'delimiter');
+  assert.equal(node.closing, ')');
+  assert.match(JSON.stringify(node.children), /←/);
+});

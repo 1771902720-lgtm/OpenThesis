@@ -114,6 +114,28 @@ function extractFrontMatter(markdown: string): { body: string; frontMatter: Mark
         parts.push(lines[index].trim());
       }
       frontMatter[key] = rawValue === '|' ? parts.join('\n') : parts.join(' ');
+    } else if (rawValue === '') {
+      // Block sequence:
+      //   keywords:
+      //     - alpha
+      //     - beta
+      // The key pattern only matches unindented `key:` lines, so these items
+      // used to be skipped entirely and the key silently became "".
+      const items: string[] = [];
+      let cursor = index + 1;
+      while (cursor < closingIndex) {
+        const item = /^\s+-\s+(.*)$/.exec(lines[cursor]);
+        if (!item) break;
+        const parsed = parseFrontMatterValue(item[1]);
+        items.push(typeof parsed === 'string' ? parsed : String(parsed));
+        cursor += 1;
+      }
+      if (items.length > 0) {
+        frontMatter[key] = items;
+        index = cursor - 1;
+      } else {
+        frontMatter[key] = '';
+      }
     } else {
       frontMatter[key] = parseFrontMatterValue(rawValue);
     }
@@ -148,14 +170,19 @@ function tokenize(markdown: string): MarkdownItem[] {
       continue;
     }
 
-    const heading = /^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+    // CommonMark only treats a trailing `#` run as a closing sequence when a
+    // space separates it from the text, so `# C#` keeps its `#`.
+    const heading = /^ {0,3}(#{1,6})\s+(.+?)(?:\s+#+)?\s*$/.exec(line);
     if (heading) {
       items.push({ kind: 'heading', level: heading[1].length, text: cleanInline(heading[2]) });
       index += 1;
       continue;
     }
 
-    const fence = /^\s*(```+|~~~+)\s*([\w.+-]*)\s*$/.exec(line);
+    // The info string may carry more than a language token (`js title=x`);
+    // the old `[\w.+-]*` failed to match, so the opener became a paragraph and
+    // the closing fence then swallowed the rest of the document.
+    const fence = /^\s*(`{3,}|~{3,})[ \t]*([^\n]*)$/.exec(line);
     if (fence) {
       const code: string[] = [];
       const fenceMarker = fence[1][0];
@@ -290,7 +317,11 @@ function startsSpecialBlock(lines: string[], index: number): boolean {
 function isTableStart(lines: string[], index: number): boolean {
   if (index + 1 >= lines.length || !lines[index].includes('|')) return false;
   const separator = lines[index + 1].trim();
-  return /^\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?$/.test(separator);
+  // GFM allows single-column tables, so the repeated group is optional. The
+  // separator must still contain a pipe, otherwise `a | b` followed by `---`
+  // is a setext heading rather than a table.
+  if (!separator.includes('|')) return false;
+  return /^\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)*\|?$/.test(separator);
 }
 
 function splitTableRow(line: string): string[] {
@@ -511,8 +542,33 @@ function arrayValue(metadata: MarkdownFrontMatter, ...keys: string[]): string[] 
   return undefined;
 }
 
+/**
+ * Split a flow sequence on commas/semicolons, ignoring separators inside
+ * quotes. Splitting first and stripping quotes afterwards tore
+ * `["a, b", c]` into `'"a'`, `'b"'`, `'c'`.
+ */
 function splitList(value: string): string[] {
-  return value.split(/\s*[,;；]\s*/).map(stripQuotes).map(item => item.trim()).filter(Boolean);
+  const items: string[] = [];
+  let current = '';
+  let quote: string | null = null;
+
+  for (const character of value) {
+    if (quote) {
+      if (character === quote) quote = null;
+      current += character;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+      current += character;
+    } else if (character === ',' || character === ';' || character === '；') {
+      items.push(current);
+      current = '';
+    } else {
+      current += character;
+    }
+  }
+  items.push(current);
+
+  return items.map(stripQuotes).map(item => item.trim()).filter(Boolean);
 }
 
 function degreeValue(value: FrontMatterValue | undefined): ThesisDocument['meta']['degree'] {
@@ -536,10 +592,20 @@ function cleanInline(text: string): string {
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
-    .replace(/(\*\*|__)(.*?)\1/g, '$2')
-    .replace(/(\*|_)(.*?)\1/g, '$2')
-    .replace(/~~(.*?)~~/g, '$1')
-    .replace(/<[^>]+>/g, '')
+    // Emphasis has to actually be emphasis. The previous `(\*|_)(.*?)\1`
+    // treated any two delimiters as a pair, so `my_file_name` became
+    // `myfilename` and `2 * 3 * 4` became `2  3  4`. CommonMark does not treat
+    // intraword underscores as emphasis, and a delimiter followed by a space
+    // opens nothing — both rules are encoded here.
+    .replace(/\*\*(\S(?:[\s\S]*?\S)?)\*\*/g, '$1')
+    .replace(/__(\S(?:[\s\S]*?\S)?)__/g, '$1')
+    .replace(/\*(\S(?:[\s\S]*?\S)?)\*/g, '$1')
+    .replace(/(?<!\w)_(\S(?:[\s\S]*?\S)?)_(?!\w)/g, '$1')
+    .replace(/~~(\S(?:[\s\S]*?\S)?)~~/g, '$1')
+    // Keep autolink targets, and only drop things that are really tags:
+    // `<[^>]+>` also ate `a < b > c` and every `<https://…>` link.
+    .replace(/<((?:https?|mailto):[^>\s]+)>/gi, '$1')
+    .replace(/<\/?[A-Za-z][^>]*>/g, '')
     .replace(/\\([\\`*{}\[\]()#+.!_>-])/g, '$1')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')

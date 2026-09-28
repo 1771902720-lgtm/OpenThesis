@@ -69,3 +69,60 @@ test('build renders Markdown directly to DOCX', () => {
   assert.equal(existsSync(output), true);
   assert.equal(readFileSync(output).subarray(0, 2).toString('ascii'), 'PK');
 });
+
+test('accepts the --flag=value form instead of silently ignoring it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'paper.md');
+  const output = join(dir, 'paper.json');
+  writeFileSync(input, '# Title\n\nBody text.');
+  const result = run(['import', input, '--type=official', '-o', output]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(readFileSync(output, 'utf8')).type, 'official');
+});
+
+test('refuses an output path that differs from the input only by case', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'paper.md');
+  const source = '# Title\n\nBody text.';
+  writeFileSync(input, source);
+  // Windows and macOS filesystems are case-insensitive, so this used to
+  // overwrite the Markdown source with the JSON it had just produced.
+  const result = run(['import', input, '-o', join(dir, 'paper.MD')]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /must be different from the Markdown input path/);
+  assert.equal(readFileSync(input, 'utf8'), source);
+});
+
+test('rejects unknown options instead of ignoring them', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'content.json');
+  writeFileSync(input, JSON.stringify({
+    type: 'thesis', meta: { title: 't' }, cover: [],
+    sections: [{ id: 'a', type: 'chapter', title: 'A', content: [] }],
+  }));
+  const result = run(['build', input, '--out', 'elsewhere.docx']);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Unknown option: --out/);
+  assert.equal(existsSync(join(dir, 'content.docx')), false);
+});
+
+test('reads a BOM-prefixed JSON content file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'content.json');
+  const content = {
+    type: 'thesis', meta: { title: 'BOM' }, cover: [],
+    sections: [{ id: 'a', type: 'chapter', title: 'A', content: [] }],
+  };
+  writeFileSync(input, `\uFEFF${JSON.stringify(content)}`, 'utf8');
+  const result = run(['build', input, '-o', join(dir, 'out.docx')]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(join(dir, 'out.docx')), true);
+});
+
+test('init honours the --type= flag form', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const result = run(['init', '--type=journal'], dir);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(join(dir, 'journal-content.json')), true);
+  assert.equal(existsSync(join(dir, 'thesis-content.json')), false);
+});
