@@ -492,7 +492,8 @@ test('emits a real TOC field for a 目录 section', async () => {
     },
   });
   const { xml } = await documentXml(buffer);
-  assert.match(xml, /<w:instrText[^>]*>TOC \\h \\o "1-3"<\/w:instrText>/);
+  // The field's quotes are XML-escaped in the part.
+  assert.match(xml, /<w:instrText[^>]*>TOC \\h \\o &quot;1-3&quot;<\/w:instrText>/);
   assert.match(xml, /目录/);
   assert.match(xml, /第一章 绪论/);
 });
