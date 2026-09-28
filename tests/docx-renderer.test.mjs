@@ -292,3 +292,47 @@ test('falls back to domain-specific typography when the template is silent', asy
   assert.match(runProperties(officialXml, 'BodyText'), /<w:sz w:val="32"\/>/);
   assert.match(runProperties(thesisXml, 'Chapter'), /w:eastAsia="黑体"/);
 });
+
+test('emits real Word list numbering instead of literal markers', async () => {
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Lists' }, cover: [],
+      sections: [{
+        id: 'l', type: 'chapter', title: 'Lists',
+        content: [
+          { type: 'list_item', text: 'bullet one' },
+          { type: 'list_item', text: 'bullet two', level: 1 },
+          { type: 'paragraph', text: 'interrupt' },
+          { type: 'list_item', text: 'second bullet list' },
+          { type: 'paragraph', text: 'interrupt again' },
+          { type: 'list_item', text: 'ordered one', ordered: true },
+          { type: 'list_item', text: 'ordered two', ordered: true },
+        ],
+      }],
+    },
+  });
+
+  const { zip, xml } = await documentXml(buffer);
+  const numbering = await zip.file('word/numbering.xml')?.async('string');
+
+  assert.ok(numbering, 'numbering.xml must be written');
+  assert.match(numbering, /<w:abstractNum/);
+  assert.match(numbering, /w:val="•"/);
+
+  const numPrs = [...xml.matchAll(/<w:numPr>[\s\S]*?<\/w:numPr>/g)];
+  assert.equal(numPrs.length, 5);
+
+  // Each separate list restarts its own counter, so the two bullet lists must
+  // not share a numId.
+  const numIds = [...xml.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map(m => m[1]);
+  assert.ok(new Set(numIds).size >= 3, `expected distinct numIds, got ${JSON.stringify(numIds)}`);
+
+  const levels = [...xml.matchAll(/<w:ilvl w:val="(\d+)"\/>/g)].map(m => m[1]);
+  assert.ok(levels.includes('1'), 'nested level must be written');
+
+  // The old renderer prefixed the text with a literal marker.
+  assert.doesNotMatch(xml, /<w:t[^>]*>•\s/);
+  assert.match(xml, /bullet one/);
+  assert.match(xml, /ordered two/);
+});

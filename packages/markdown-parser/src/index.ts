@@ -266,16 +266,29 @@ function tokenize(markdown: string): MarkdownItem[] {
 
     const listMatch = /^(\s*)([-+*]|\d+[.)])\s+(.+)$/.exec(line);
     if (listMatch) {
+      // Indent column of each open list level. Nesting is derived from where a
+      // marker actually sits, not from `floor(indent / 2)`: Markdown nests at
+      // 2 or 4 spaces and both used to land on the wrong level.
+      const openIndents: number[] = [];
+
       while (index < lines.length) {
         const item = /^(\s*)([-+*]|\d+[.)])\s+(.+)$/.exec(lines[index]);
         if (!item) break;
         const indentation = item[1].replace(/\t/g, '    ').length;
+
+        while (openIndents.length > 0 && indentation < openIndents[openIndents.length - 1]) {
+          openIndents.pop();
+        }
+        if (openIndents.length === 0 || indentation > openIndents[openIndents.length - 1]) {
+          openIndents.push(indentation);
+        }
+
         items.push({
           kind: 'block',
           block: {
             type: 'list_item',
             text: cleanInline(item[3]),
-            level: Math.floor(indentation / 2),
+            level: openIndents.length - 1,
             ordered: /^\d/.test(item[2]),
             marker: item[2],
           },

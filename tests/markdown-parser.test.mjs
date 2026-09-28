@@ -198,3 +198,16 @@ test('accepts an extended fence info string', () => {
     { type: 'paragraph', text: 'after paragraph' },
   ]);
 });
+
+test('derives list nesting from the marker column', () => {
+  // `floor(indent / 2)` put 4-space nesting on level 2 and 8-space on level 4.
+  const twoSpace = parseMarkdownBlocks('- top one\n- top two\n  - nested\n    - deeper\n- top three');
+  assert.deepEqual(twoSpace.map(block => block.level), [0, 0, 1, 2, 0]);
+
+  const fourSpace = parseMarkdownBlocks('- a\n    - b\n        - c');
+  assert.deepEqual(fourSpace.map(block => block.level), [0, 1, 2]);
+
+  // Dedenting returns to the enclosing level rather than starting a new one.
+  const dedent = parseMarkdownBlocks('- a\n    - b\n- c');
+  assert.deepEqual(dedent.map(block => block.level), [0, 1, 0]);
+});
