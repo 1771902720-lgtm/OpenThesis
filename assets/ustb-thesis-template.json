@@ -19,9 +19,31 @@
     "headerDistance": 851,
     "footerDistance": 850,
     "gutter": 567,
+    "mirrorMargins": true,
     "columns": 1,
     "columnGutter": 0,
-    "mirrorMargins": true
+    "headers": {
+      "even": {
+        "text": "现代绿色化学中的物理有机问题",
+        "pageNumber": false,
+        "rule": true
+      },
+      "default": {
+        "text": "北京科技大学硕士学位论文",
+        "pageNumber": false,
+        "rule": true
+      }
+    },
+    "footers": {
+      "default": {
+        "text": "2",
+        "pageNumber": true
+      },
+      "even": {
+        "text": "2",
+        "pageNumber": true
+      }
+    }
   },
   "pageSections": [
     {
@@ -36,8 +58,17 @@
       "headerDistance": 851,
       "footerDistance": 851,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "pageNumberFormat": "upperRoman",
+      "headers": {
+        "even": {
+          "text": "",
+          "pageNumber": false,
+          "rule": true
+        }
+      }
     },
     {
       "width": 11906,
@@ -51,8 +82,16 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "pageNumberFormat": "upperRoman",
+      "headers": {
+        "even": {
+          "text": "",
+          "pageNumber": false
+        }
+      }
     },
     {
       "width": 11906,
@@ -66,8 +105,22 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "pageNumberFormat": "upperRoman",
+      "footers": {
+        "default": {
+          "text": "",
+          "pageNumber": false
+        }
+      },
+      "headers": {
+        "even": {
+          "text": "",
+          "pageNumber": false
+        }
+      }
     },
     {
       "width": 11906,
@@ -81,8 +134,32 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "pageNumberFormat": "upperRoman",
+      "pageNumberStart": 1,
+      "headers": {
+        "even": {
+          "text": "",
+          "pageNumber": false
+        },
+        "default": {
+          "text": "北京科技大学硕士学位论文",
+          "pageNumber": false,
+          "rule": true
+        }
+      },
+      "footers": {
+        "default": {
+          "text": "77",
+          "pageNumber": true
+        },
+        "even": {
+          "text": "66",
+          "pageNumber": true
+        }
+      }
     },
     {
       "width": 11906,
@@ -96,8 +173,33 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "pageNumberFormat": "upperRoman",
+      "pageNumberStart": 1,
+      "headers": {
+        "even": {
+          "text": "现代绿色化学中的物理有机问题",
+          "pageNumber": false,
+          "rule": true
+        },
+        "default": {
+          "text": "北京科技大学硕士学位论文",
+          "pageNumber": false,
+          "rule": true
+        }
+      },
+      "footers": {
+        "default": {
+          "text": "2",
+          "pageNumber": true
+        },
+        "even": {
+          "text": "2",
+          "pageNumber": true
+        }
+      }
     },
     {
       "width": 11906,
@@ -111,8 +213,32 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "pageNumberFormat": "upperRoman",
+      "headers": {
+        "even": {
+          "text": "现代绿色化学中的物理有机问题",
+          "pageNumber": false,
+          "rule": true
+        },
+        "default": {
+          "text": "北京科技大学硕士学位论文",
+          "pageNumber": false,
+          "rule": true
+        }
+      },
+      "footers": {
+        "default": {
+          "text": "2",
+          "pageNumber": true
+        },
+        "even": {
+          "text": "2",
+          "pageNumber": true
+        }
+      }
     },
     {
       "width": 11906,
@@ -126,8 +252,32 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "pageNumberFormat": "upperRoman",
+      "headers": {
+        "even": {
+          "text": "现代绿色化学中的物理有机问题",
+          "pageNumber": false,
+          "rule": true
+        },
+        "default": {
+          "text": "北京科技大学硕士学位论文",
+          "pageNumber": false,
+          "rule": true
+        }
+      },
+      "footers": {
+        "default": {
+          "text": "2",
+          "pageNumber": true
+        },
+        "even": {
+          "text": "2",
+          "pageNumber": true
+        }
+      }
     },
     {
       "width": 11906,
@@ -141,8 +291,32 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "pageNumberFormat": "upperRoman",
+      "headers": {
+        "even": {
+          "text": "现代绿色化学中的物理有机问题",
+          "pageNumber": false,
+          "rule": true
+        },
+        "default": {
+          "text": "北京科技大学硕士学位论文",
+          "pageNumber": false,
+          "rule": true
+        }
+      },
+      "footers": {
+        "default": {
+          "text": "2",
+          "pageNumber": true
+        },
+        "even": {
+          "text": "2",
+          "pageNumber": true
+        }
+      }
     },
     {
       "width": 11906,
@@ -156,8 +330,32 @@
       "headerDistance": 851,
       "footerDistance": 851,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 720
+      "columnGutter": 720,
+      "pageNumberStart": 1,
+      "footers": {
+        "default": {
+          "text": "2",
+          "pageNumber": true
+        },
+        "even": {
+          "text": "2",
+          "pageNumber": true
+        }
+      },
+      "headers": {
+        "even": {
+          "text": "现代绿色化学中的物理有机问题",
+          "pageNumber": false,
+          "rule": true
+        },
+        "default": {
+          "text": "北京科技大学硕士学位论文",
+          "pageNumber": false,
+          "rule": true
+        }
+      }
     },
     {
       "width": 11906,
@@ -171,8 +369,31 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "headers": {
+        "even": {
+          "text": "现代绿色化学中的物理有机问题",
+          "pageNumber": false,
+          "rule": true
+        },
+        "default": {
+          "text": "北京科技大学硕士学位论文",
+          "pageNumber": false,
+          "rule": true
+        }
+      },
+      "footers": {
+        "default": {
+          "text": "2",
+          "pageNumber": true
+        },
+        "even": {
+          "text": "2",
+          "pageNumber": true
+        }
+      }
     },
     {
       "width": 11906,
@@ -186,10 +407,34 @@
       "headerDistance": 851,
       "footerDistance": 850,
       "gutter": 567,
+      "mirrorMargins": true,
       "columns": 1,
-      "columnGutter": 0
+      "columnGutter": 0,
+      "headers": {
+        "even": {
+          "text": "现代绿色化学中的物理有机问题",
+          "pageNumber": false,
+          "rule": true
+        },
+        "default": {
+          "text": "北京科技大学硕士学位论文",
+          "pageNumber": false,
+          "rule": true
+        }
+      },
+      "footers": {
+        "default": {
+          "text": "2",
+          "pageNumber": true
+        },
+        "even": {
+          "text": "2",
+          "pageNumber": true
+        }
+      }
     }
   ],
+  "evenAndOddHeaders": true,
   "styles": {
     "1": {
       "font": {
@@ -1147,6 +1392,6 @@
     "aff": "a"
   },
   "warnings": [
-    "The document declares 11 sections; only the last is used for page geometry, so cover or appendix page setups are not reproduced."
+    "The document declares 11 sections; the generator reproduces the cover, the front matter and the body, so a section that only changes the setup mid-chapter is not reproduced."
   ]
 }

@@ -11,9 +11,11 @@ import type {
   DocumentTemplate,
   TemplateMeta,
   PageSettings,
+  PageNumberFormat,
   ParagraphStyle,
   ParagraphFormatting,
   LineSpacingRule,
+  RunningHeadSlots,
   StyleRole,
   BlockType,
 } from '@openthesis/document-schema';
@@ -83,9 +85,16 @@ export async function parseTemplate(
   const { styles: acyclicStyles, cycles } = breakStyleCycles(rawStyles);
   const resolvedStyles = resolveStyleInheritance(acyclicStyles);
 
-  // 3. Parse document.xml for page settings
+  // 3. Parse document.xml for page settings. Every section's running heads come
+  // from the header/footer parts it references, so those are read first and
+  // resolved in: without them a template's 篇眉 is invisible to the renderer,
+  // which then invents its own. 对称页边距 and 偶数页页眉 come from settings.xml.
   const docXml = await zip.file('word/document.xml')?.async('string');
-  const pageSections = docXml ? extractPageSections(parser.parse(normalizeWordPrefix(docXml))) : [];
+  const documentSettings = await readDocumentSettings(zip, parser);
+  const runningHeads = await readRunningHeadParts(zip, parser);
+  const pageSections = docXml
+    ? extractPageSections(parser.parse(normalizeWordPrefix(docXml)), runningHeads, documentSettings)
+    : [];
   const pageSettings = pageSections.length > 0
     ? pageSections[pageSections.length - 1]
     : getDefaultPageSettings();
@@ -96,7 +105,9 @@ export async function parseTemplate(
   const { roles: styleRoles, explicit } = detectStyleRoles(resolvedStyles, Object.keys(rawStyles));
   const roleWinners = pickRoleWinners(styleRoles, usage, explicit);
 
-  // 5. Build template
+  const evenAndOddHeaders = documentSettings.evenAndOddHeaders;
+
+  // 6. Build template
   const meta: TemplateMeta = {
     ...metaOverrides,
     organization: metaOverrides?.organization?.trim() || 'Unknown Organization',
@@ -118,6 +129,7 @@ export async function parseTemplate(
     meta,
     page: pageSettings,
     ...(pageSections.length > 0 ? { pageSections } : {}),
+    ...(evenAndOddHeaders ? { evenAndOddHeaders } : {}),
     styles,
     styleRoles,
     ...(Object.keys(roleWinners).length > 0 ? { roleWinners } : {}),
@@ -182,8 +194,9 @@ function buildWarnings(
 
   if (pageSections.length > 1) {
     warnings.push(
-      `The document declares ${pageSections.length} sections; only the last is used for page geometry, `
-      + 'so cover or appendix page setups are not reproduced.',
+      `The document declares ${pageSections.length} sections; the generator reproduces the cover, the `
+      + 'front matter and the body, so a section that only changes the setup mid-chapter is not '
+      + 'reproduced.',
     );
   }
 
@@ -592,6 +605,185 @@ function mapAlignment(align?: string): ParagraphFormatting['alignment'] | undefi
 // ── Page Settings Extraction ───────────────────────────────
 
 /**
+ * What one header or footer part prints, keyed by the relationship id that
+ * points at it.
+ */
+interface RunningHeadPart {
+  text: string;
+  pageNumber: boolean;
+  rule: boolean;
+}
+
+type RunningHeadPartIndex = Map<string, RunningHeadPart>;
+
+/**
+ * Read every header/footer part `document.xml` relates to, so a section's
+ * `w:headerReference` / `w:footerReference` can be resolved to what it prints.
+ *
+ * The parts are the only place the 篇眉 lives: the university template's odd
+ * pages read 北京科技大学硕士学位论文 and its even pages carry the thesis title,
+ * both centred 五号 with a 0.5 pt rule. Until this ran, the renderer invented a
+ * head of its own and every template looked the same.
+ *
+ * `w:type="even"` is inert unless `word/settings.xml` sets
+ * `w:evenAndOddHeaders`, which is read alongside this.
+ */
+async function readRunningHeadParts(zip: JSZip, parser: XMLParser): Promise<RunningHeadPartIndex> {
+  const index: RunningHeadPartIndex = new Map();
+
+  const relsFile = zip.file('word/_rels/document.xml.rels');
+  if (!relsFile) return index;
+  const rels = parser.parse(await relsFile.async('string'));
+
+  for (const relationship of asArray(rels?.['Relationships']?.['Relationship']) as any[]) {
+    const type = String(relationship?.['@_Type'] ?? '');
+    const isHeader = type.endsWith('/header');
+    if (!isHeader && !type.endsWith('/footer')) continue;
+
+    const id = relationship?.['@_Id'];
+    const target = relationship?.['@_Target'];
+    if (id === undefined || typeof target !== 'string') continue;
+
+    const xml = await zip.file(resolvePartPath(target))?.async('string');
+    // A relationship whose part is missing still occupies the slot: the template
+    // asked for something here, and an empty head is the reading that cannot
+    // invent text.
+    index.set(String(id), xml ? readRunningHeadPart(parser, xml) : { text: '', pageNumber: false, rule: false });
+  }
+
+  return index;
+}
+
+/** A relationship target is relative to `word/`; a leading `/` makes it absolute. */
+function resolvePartPath(target: string): string {
+  return target.startsWith('/') ? target.slice(1) : `word/${target.replace(/^\.\//, '')}`;
+}
+
+/**
+ * What one header/footer part prints.
+ *
+ * The text is every `w:t` in the part, joined: a running head is one line, and
+ * joining is the only reading that survives Word splitting it across runs. A
+ * PAGE field marks the part as the page number, `w:pBdr/w:bottom` as the 篇眉
+ * rule. An *empty* part is a suppression rather than an absence — the
+ * university template keeps the cover head-less by pointing at one, since it
+ * has no `w:titlePg` anywhere.
+ */
+function readRunningHeadPart(parser: XMLParser, xml: string): RunningHeadPart {
+  const parsed = parser.parse(normalizeWordPrefix(xml));
+  return {
+    text: collectTagText(parsed, 'w:t').join(''),
+    pageNumber: collectTagText(parsed, 'w:instrText').some(instruction => /\bPAGE\b/.test(instruction)),
+    rule: hasBottomRule(parsed),
+  };
+}
+
+/** Every value of one tag in a parsed part, in document order. */
+function collectTagText(node: unknown, tag: string, out: string[] = []): string[] {
+  if (!node || typeof node !== 'object') return out;
+  if (Array.isArray(node)) {
+    for (const item of node) collectTagText(item, tag, out);
+    return out;
+  }
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (key === tag) {
+      const text = tagText(value);
+      if (text) out.push(text);
+    } else {
+      collectTagText(value, tag, out);
+    }
+  }
+  return out;
+}
+
+/** A leaf's character data, whether the parser kept it as a string or a `#text`. */
+function tagText(value: unknown): string {
+  const one = (item: unknown): string => {
+    if (typeof item === 'string') return item;
+    if (typeof item === 'number') return String(item);
+    if (item && typeof item === 'object') {
+      const text = (item as Record<string, unknown>)['#text'];
+      if (typeof text === 'string' || typeof text === 'number') return String(text);
+    }
+    return '';
+  };
+  return Array.isArray(value) ? value.map(one).join('') : one(value);
+}
+
+/**
+ * The 篇眉 rule: a `w:pBdr/w:bottom` that actually draws, i.e. one whose
+ * `w:val` is not `none`. A paragraph that switches the border off explicitly
+ * still carries the element.
+ */
+function hasBottomRule(node: unknown): boolean {
+  if (!node || typeof node !== 'object') return false;
+  if (Array.isArray(node)) return node.some(item => hasBottomRule(item));
+
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (key === 'w:pBdr') {
+      for (const borders of asArray(value) as any[]) {
+        const bottom = borders?.['w:bottom'];
+        if (bottom === undefined) continue;
+        const val = bottom?.['@_w:val'];
+        if (val !== 'none' && val !== 'nil') return true;
+      }
+    } else if (hasBottomRule(value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function asArray<T>(value: T | T[] | undefined): T[] {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+/** Document-wide settings from `word/settings.xml` that the renderer must honour. */
+interface DocumentSettings {
+  /** `<w:evenAndOddHeaders/>`: odd and even pages may use different heads. */
+  evenAndOddHeaders: boolean;
+  /** `<w:mirrorMargins/>`: 对称页边距 for a bound thesis. */
+  mirrorMargins: boolean;
+}
+
+/**
+ * Read the document settings that change how pages are laid out.
+ *
+ * Both of these are `w:settings` children and are *invalid* anywhere else, so
+ * this is the only place they can come from: the university template sets
+ * 对称页边距 and 偶数页页眉 here, and looking for them inside `w:sectPr` — as the
+ * page geometry reader does — reports `false` for a template that asks for
+ * both. `<w:evenAndOddHeaders/>` is what makes a `w:type="even"` reference do
+ * anything, and while it is on `w:type="default"` means odd pages only.
+ */
+async function readDocumentSettings(zip: JSZip, parser: XMLParser): Promise<DocumentSettings> {
+  const settings: DocumentSettings = { evenAndOddHeaders: false, mirrorMargins: false };
+
+  const xml = await zip.file('word/settings.xml')?.async('string');
+  if (!xml) return settings;
+
+  const parsed = parser.parse(normalizeWordPrefix(xml));
+  const root = parsed?.['w:settings'];
+  settings.evenAndOddHeaders = root?.['w:evenAndOddHeaders'] === undefined
+    ? false
+    : isOn(root['w:evenAndOddHeaders']);
+  settings.mirrorMargins = root?.['w:mirrorMargins'] === undefined
+    ? false
+    : isOn(root['w:mirrorMargins']);
+
+  return settings;
+}
+
+/** An OOXML on/off element is on when present, unless `w:val` says otherwise. */
+function isOn(element: any): boolean {
+  const value = element?.['@_w:val'];
+  if (value === undefined) return true;
+  const text = String(value).toLowerCase();
+  return text !== '0' && text !== 'false' && text !== 'off';
+}
+
+/**
  * Every section geometry in the document, in document order.
  *
  * In OOXML every section but the last keeps its properties in
@@ -599,30 +791,106 @@ function mapAlignment(align?: string): ParagraphFormatting['alignment'] | undefi
  * `w:body`. Reading only the body-level element meant a template with a
  * distinct cover or a landscape appendix reported a single geometry.
  */
-function extractPageSections(parsed: any): PageSettings[] {
+function extractPageSections(
+  parsed: any,
+  runningHeads: RunningHeadPartIndex = new Map(),
+  documentSettings: DocumentSettings = { evenAndOddHeaders: false, mirrorMargins: false },
+): PageSettings[] {
   const body = parsed?.['w:document']?.['w:body'];
   if (!body) return [];
 
   const sections: PageSettings[] = [];
 
-  const paragraphs = body['w:p'];
-  for (const paragraph of Array.isArray(paragraphs) ? paragraphs : paragraphs ? [paragraphs] : []) {
+  for (const paragraph of asArray(body['w:p'])) {
     const pPr = firstElement(paragraph?.['w:pPr']);
     const sectPr = firstElement(pPr?.['w:sectPr']);
-    if (sectPr) sections.push(sectPrToPageSettings(sectPr));
+    if (sectPr) sections.push(sectPrToPageSettings(sectPr, runningHeads, documentSettings));
   }
 
   const bodySectPr = firstElement(body['w:sectPr']);
-  if (bodySectPr) sections.push(sectPrToPageSettings(bodySectPr));
+  if (bodySectPr) sections.push(sectPrToPageSettings(bodySectPr, runningHeads, documentSettings));
+
+  return resolveRunningHeadInheritance(sections);
+}
+
+/**
+ * Carry each of the six slots forward, the way OOXML does.
+ *
+ * A section that declares no reference of its own still prints its
+ * predecessor's head. The university template's body relies on exactly that:
+ * it declares no `w:headerReference`, yet it prints 北京科技大学硕士学位论文 on odd
+ * pages and the thesis title on even ones, inherited from sections 8 and 5.
+ * Reading only the sections that declare references makes the body look
+ * head-less.
+ */
+function resolveRunningHeadInheritance(sections: PageSettings[]): PageSettings[] {
+  let carriedHeaders: RunningHeadSlots | undefined;
+  let carriedFooters: RunningHeadSlots | undefined;
+
+  for (const section of sections) {
+    carriedHeaders = mergeSlots(carriedHeaders, section.headers);
+    carriedFooters = mergeSlots(carriedFooters, section.footers);
+
+    if (carriedHeaders) section.headers = carriedHeaders;
+    else delete section.headers;
+    if (carriedFooters) section.footers = carriedFooters;
+    else delete section.footers;
+  }
 
   return sections;
 }
 
-function sectPrToPageSettings(sectPr: any): PageSettings {
+/**
+ * One slot at a time: a declared reference replaces that slot and leaves the
+ * other two as they were carried in.
+ */
+function mergeSlots(
+  carried: RunningHeadSlots | undefined,
+  declared: RunningHeadSlots | undefined,
+): RunningHeadSlots | undefined {
+  if (!declared) return carried;
+  const merged: RunningHeadSlots = { ...carried, ...declared };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+/** The slots one section declares itself, before inheritance. */
+function readReferences(refs: unknown, runningHeads: RunningHeadPartIndex): RunningHeadSlots | undefined {
+  const slots: RunningHeadSlots = {};
+
+  for (const ref of asArray(refs) as any[]) {
+    const type = ref?.['@_w:type'];
+    const slot: keyof RunningHeadSlots = type === 'even' ? 'even' : type === 'first' ? 'first' : 'default';
+    const part = runningHeads.get(String(ref?.['@_r:id']));
+    slots[slot] = {
+      text: part?.text ?? '',
+      pageNumber: part?.pageNumber ?? false,
+      ...(part?.rule ? { rule: true } : {}),
+    };
+  }
+
+  return Object.keys(slots).length > 0 ? slots : undefined;
+}
+
+const PAGE_NUMBER_FORMATS: PageNumberFormat[] = [
+  'decimal', 'upperRoman', 'lowerRoman', 'upperLetter', 'lowerLetter',
+  'chineseCounting', 'chineseCountingThousand', 'none',
+];
+
+/** `w:pgNumType/@w:fmt` in our vocabulary; an unknown format is dropped. */
+function toPageNumberFormat(value?: string): PageNumberFormat | undefined {
+  return PAGE_NUMBER_FORMATS.find(format => format === value);
+}
+
+function sectPrToPageSettings(
+  sectPr: any,
+  runningHeads: RunningHeadPartIndex = new Map(),
+  documentSettings: DocumentSettings = { evenAndOddHeaders: false, mirrorMargins: false },
+): PageSettings {
   const pgSz = sectPr['w:pgSz'];
   const pgMar = sectPr['w:pgMar'];
-  // 对称页边距: present as an empty element, absent otherwise.
-  const mirrorMargins = sectPr['w:mirrorMargins'] !== undefined;
+  // 对称页边距 is a document setting; a section that declares it anyway is
+  // malformed but is still honoured rather than dropped.
+  const mirrorMargins = documentSettings.mirrorMargins || sectPr['w:mirrorMargins'] !== undefined;
 
   let width = 11906;   // A4 default in twips
   let height = 16838;
@@ -674,7 +942,26 @@ function sectPrToPageSettings(sectPr: any): PageSettings {
     if (!isNaN(space)) columnGutter = space;
   }
 
-  return { width, height, margins, headerDistance, footerDistance, gutter, mirrorMargins, columns, columnGutter };
+  // 页码: the format this section numbers in and where it restarts. The
+  // university template numbers the front matter `upperRoman` from I and
+  // restarts the body at arabic 1 — which is a `w:pgNumType` on the section,
+  // never on the footer that prints the number.
+  const pgNumType = firstElement(sectPr['w:pgNumType']);
+  const pageNumberFormat = toPageNumberFormat(pgNumType?.['@_w:fmt']);
+  const pageNumberStart = parseInt(pgNumType?.['@_w:start']);
+
+  // 篇眉 / 页码 parts, as this section writes them. Danger: OOXML inherits each
+  // slot independently, so what this section *prints* is resolved afterwards.
+  const headers = readReferences(sectPr['w:headerReference'], runningHeads);
+  const footers = readReferences(sectPr['w:footerReference'], runningHeads);
+
+  return {
+    width, height, margins, headerDistance, footerDistance, gutter, mirrorMargins, columns, columnGutter,
+    ...(pageNumberFormat ? { pageNumberFormat } : {}),
+    ...(Number.isFinite(pageNumberStart) ? { pageNumberStart } : {}),
+    ...(headers ? { headers } : {}),
+    ...(footers ? { footers } : {}),
+  };
 }
 
 function getDefaultPageSettings(): PageSettings {

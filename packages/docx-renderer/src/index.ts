@@ -17,15 +17,23 @@ import {
   MathFunction, MathLimitLower, MathLimitUpper, BuilderElement,
   TableOfContents,
 } from 'docx';
-import type { ISectionPropertiesOptions, MathComponent, INumberingOptions } from 'docx';
+import type {
+  ISectionOptions, ISectionPropertiesOptions, IPageNumberTypeAttributes,
+  MathComponent, INumberingOptions,
+} from 'docx';
 import type {
   DocumentTemplate,
   ThesisDocument,
+  ThesisSection,
   JournalArticle,
   JournalSection,
   OfficialDocument,
   ContentBlock,
   ParagraphStyle,
+  PageSettings,
+  PageNumberFormat,
+  RunningHead,
+  RunningHeadSlots,
   LineSpacingRule,
   StyleRole,
   LegacyDocumentJSON,
@@ -1239,21 +1247,55 @@ function processBlock(
 
 // ── Structured Renderers ──────────────────────────────────
 
-function renderThesisDocument(
+/**
+ * The parts of a thesis that get a page setup of their own.
+ *
+ * A thesis is not one run of pages: the cover carries no running head and no
+ * page number, the front matter is numbered in Roman numerals and the body
+ * restarts at arabic 1. OOXML expresses each of those as a *section*, so the
+ * renderer groups the content into these three before laying anything out.
+ */
+export type DocumentPartRole = 'cover' | 'front_matter' | 'body';
+
+interface RenderedPart {
+  role: DocumentPartRole;
+  children: (Paragraph | Table)[];
+}
+
+/**
+ * Section types that belong to the front matter, i.e. the pages numbered in
+ * Roman numerals before the body restarts at 1: 摘要, ABSTRACT, 目录, 插图和附表
+ * 清单, 符号清单. 致谢 and 附录 are *not* here — the university guide numbers them
+ * with the body, after 参考文献.
+ */
+const FRONT_MATTER_TYPES: ReadonlySet<ThesisSection['type']> = new Set([
+  'abstract', 'toc', 'list_of_figures', 'list_of_tables',
+]);
+
+/** A 目录 is a field, not text — see `tocBlock`. */
+function tocBlock(title: string): Paragraph {
+  return new TableOfContents(title, { hyperlink: true, headingStyleRange: '1-3' }) as unknown as Paragraph;
+}
+
+/**
+ * Group a thesis into the parts a page setup can be attached to.
+ *
+ * The grouping comes from the content, not from a flag, so a content file
+ * written before sections existed still lays out correctly: a document with no
+ * cover blocks simply has no cover part, and one with no 摘要/目录 has no front
+ * matter.
+ */
+function renderThesisParts(
   doc: ThesisDocument,
   template: DocumentTemplate,
   contentDir?: string,
   state: RenderState = createRenderState(),
-): (Paragraph | Table)[] {
-  const children: (Paragraph | Table)[] = [];
-
-  // Cover Page
-  children.push(...processBlocks(doc.cover, template, contentDir, undefined, state));
-
+): RenderedPart[] {
+  const parts: RenderedPart[] = [];
   const HEADING_TYPES = ['heading1', 'heading2', 'heading3', 'heading4'] as const;
 
   // Body Sections — recursively flatten to support arbitrary nesting depth
-  function flattenSections(sections: typeof doc.sections, depth: number = 0): ContentBlock[] {
+  function flattenSections(sections: ThesisSection[], depth: number = 0): ContentBlock[] {
     const result: ContentBlock[] = [];
     const headingType = HEADING_TYPES[Math.min(depth, HEADING_TYPES.length - 1)];
     for (const section of sections) {
@@ -1271,40 +1313,78 @@ function renderThesisDocument(
     return result;
   }
 
-  if (doc.sections && doc.sections.length > 0) {
-    // A 目录 is a field, not text. Word fills the entries and their page numbers
-    // when the field is updated; no generator can compute page numbers, so the
-    // honest output is the field plus a note in the docs that Word must update
-    // it. `TableOfContents` is a valid document child the `Paragraph | Table`
-    // alias predates, hence the cast at this one place.
-    const tocSections = doc.sections.filter(section => section.type === 'toc');
-    for (const section of tocSections) {
-      children.push(renderHeading(template, { type: 'heading1', text: section.title, styleRole: 'section_heading' }));
-      children.push(
-        new TableOfContents(section.title, { hyperlink: true, headingStyleRange: '1-3' }) as unknown as Paragraph,
-      );
-    }
+  const sections = doc.sections ?? [];
+  const frontMatter = sections.filter(section => FRONT_MATTER_TYPES.has(section.type));
+  const body = sections.filter(section => !FRONT_MATTER_TYPES.has(section.type));
 
-    const bodySections = doc.sections.filter(section => section.type !== 'toc');
-    children.push(...processBlocks(flattenSections(bodySections), template, contentDir, undefined, state));
+  // Cover Page. A trailing explicit break is dropped: the section break that
+  // follows the cover already starts a new page.
+  if (doc.cover && doc.cover.length > 0) {
+    parts.push({
+      role: 'cover',
+      children: processBlocks(trimTrailingPageBreak(doc.cover), template, contentDir, undefined, state),
+    });
   }
 
-  // Back Matter
-  if (doc.backMatter) {
-    if (doc.backMatter.references && doc.backMatter.references.length > 0) {
-      children.push(
-        renderHeading(template, { type: 'heading1', text: '参考文献', styleRole: 'section_heading' }),
-        ...doc.backMatter.references.map(ref =>
-          renderParagraph(template, {
-            type: 'paragraph_no_indent',
-            text: `[${ref.id}] ${ref.text}`,
-          }, undefined, 'reference_item'),
-        ),
-      );
+  if (frontMatter.length > 0) {
+    // Document order inside the front matter: the 目录 field keeps its place
+    // (摘要, ABSTRACT, 目录 …) rather than being hoisted. Every front-matter
+    // section is laid out before the body part anyway, so the 目录 still cannot
+    // end up after a chapter.
+    const children: (Paragraph | Table)[] = [];
+    for (const section of frontMatter) {
+      if (section.type === 'toc') {
+        // Word fills the entries and their page numbers when the field is
+        // updated; no generator can compute page numbers, so the honest output
+        // is the field plus `w:updateFields` asking Word to refresh it.
+        children.push(renderHeading(template, { type: 'heading1', text: section.title, styleRole: 'section_heading' }));
+        children.push(tocBlock(section.title));
+        continue;
+      }
+      children.push(...processBlocks(trimTrailingPageBreak(flattenSections([section])), template, contentDir, undefined, state));
     }
+    parts.push({ role: 'front_matter', children });
   }
 
-  return children;
+  const bodyChildren: (Paragraph | Table)[] = [];
+  if (body.length > 0) {
+    bodyChildren.push(...processBlocks(flattenSections(body), template, contentDir, undefined, state));
+  }
+
+  // Back Matter. 参考文献 and everything after it belong to the body section:
+  // the guide numbers them with the body, not with the front matter.
+  if (doc.backMatter?.references && doc.backMatter.references.length > 0) {
+    bodyChildren.push(
+      renderHeading(template, { type: 'heading1', text: '参考文献', styleRole: 'section_heading' }),
+      ...doc.backMatter.references.map(ref =>
+        renderParagraph(template, {
+          type: 'paragraph_no_indent',
+          text: `[${ref.id}] ${ref.text}`,
+        }, undefined, 'reference_item'),
+      ),
+    );
+  }
+
+  if (bodyChildren.length > 0 || parts.length === 0) {
+    parts.push({ role: 'body', children: bodyChildren });
+  }
+
+  return parts;
+}
+
+/**
+ * Drop the explicit page break a part ends with.
+ *
+ * The section break already starts a new page, so a trailing `page_break`
+ * prints an empty one between the two — the sample content's cover ends with
+ * exactly that break, left over from when the whole document was one section.
+ */
+function trimTrailingPageBreak(blocks: ContentBlock[]): ContentBlock[] {
+  const trimmed = [...blocks];
+  while (trimmed.length > 0 && trimmed[trimmed.length - 1].type === 'page_break') {
+    trimmed.pop();
+  }
+  return trimmed;
 }
 
 function renderJournalArticle(
@@ -1641,6 +1721,284 @@ function renderOfficialDocument(
   return children;
 }
 
+// ── Sections ──────────────────────────────────────────────
+
+/** 五号 (10.5 pt) — the size the university template sets its 篇眉 in. */
+const RUNNING_HEAD_SIZE = 21;
+const RUNNING_HEAD_FONT = {
+  ascii: 'Times New Roman',
+  hAnsi: 'Times New Roman',
+  eastAsia: '宋体',
+  cs: 'Times New Roman',
+};
+
+/** The three slots OOXML lets one section reference. */
+interface RunningHeadGroup<T> { default?: T; even?: T; first?: T }
+
+/**
+ * The template page section that governs a part.
+ *
+ * - the cover uses the template's first section (its 封一);
+ * - the front matter uses the last section that restarts page numbering in
+ *   Roman numerals — the 摘要 page. A template usually carries a *continuous*
+ *   marker section just before it, which occupies no page of its own, so the
+ *   restart that matters is the last one, not the first;
+ * - the body uses the template's final section, which is the geometry
+ *   `template.page` already exposes.
+ *
+ * Every part falls back to `template.page`: the university template's eleven
+ * sections share one geometry, and a template that declares only a cover
+ * section still has only one setup to give.
+ */
+function partSettings(
+  role: DocumentPartRole,
+  sections: PageSettings[],
+  template: DocumentTemplate,
+): PageSettings {
+  if (sections.length === 0) return template.page;
+  if (role === 'cover') return sections[0];
+  if (role === 'body') return template.page;
+
+  const restartsRoman = sections.filter(
+    section => section.pageNumberStart === 1 && isRomanFormat(section.pageNumberFormat),
+  );
+  return restartsRoman[restartsRoman.length - 1]
+    ?? sections.find((section, index) => index > 0 && isRomanFormat(section.pageNumberFormat))
+    ?? sections[1]
+    ?? template.page;
+}
+
+function isRomanFormat(format?: PageNumberFormat): boolean {
+  return format === 'upperRoman' || format === 'lowerRoman';
+}
+
+/**
+ * `w:pgNumType` for a part.
+ *
+ * The template's own declaration wins where there is one — the university
+ * template numbers the front matter `upperRoman` and restarts it at I. Where
+ * the template is silent, the requirement the guide states applies: the front
+ * matter is Roman from I, and the body restarts at 1 in decimal.
+ */
+function partPageNumbers(role: DocumentPartRole, settings: PageSettings): IPageNumberTypeAttributes {
+  if (role === 'cover') {
+    // Nothing prints on the cover; the format only decides what the *next*
+    // section continues from, so an undeclared one is left undeclared.
+    return { ...(settings.pageNumberFormat ? { formatType: settings.pageNumberFormat } : {}) };
+  }
+  if (role === 'front_matter') {
+    return {
+      formatType: settings.pageNumberFormat ?? 'upperRoman',
+      start: settings.pageNumberStart ?? 1,
+    };
+  }
+  return {
+    formatType: settings.pageNumberFormat ?? 'decimal',
+    start: settings.pageNumberStart ?? 1,
+  };
+}
+
+/**
+ * Size, margins, head/footer distances, the binding gutter and the columns of
+ * one part, plus its page numbering. Everything comes from the template; none
+ * of it is invented here.
+ */
+function pageProperties(
+  settings: PageSettings,
+  pageNumbers: IPageNumberTypeAttributes = {},
+): ISectionPropertiesOptions {
+  return {
+    page: {
+      size: {
+        width: settings.width,
+        height: settings.height,
+      },
+      margin: {
+        top: settings.margins.top,
+        bottom: settings.margins.bottom,
+        left: settings.margins.left,
+        right: settings.margins.right,
+        // The binding edge: the guide asks for 1 cm on the left.
+        ...(settings.gutter ? { gutter: settings.gutter } : {}),
+        // How far the head and the page number sit from the page edge.
+        ...(settings.headerDistance !== undefined ? { header: settings.headerDistance } : {}),
+        ...(settings.footerDistance !== undefined ? { footer: settings.footerDistance } : {}),
+      },
+      ...(Object.keys(pageNumbers).length > 0 ? { pageNumbers } : {}),
+    },
+    ...(settings.columns && settings.columns > 1
+      ? {
+          column: {
+            count: settings.columns,
+            space: settings.columnGutter ?? 708,
+          },
+        }
+      : {}),
+  };
+}
+
+/**
+ * Fill `{title}`, `{organization}` and `{author}` in a running head.
+ *
+ * The guide puts the thesis title on the even pages, and a *template* cannot
+ * know what that title will be — the university template carries the sample
+ * thesis's own title in that part. A template that writes `{title}` there gets
+ * the document's title instead; a template that writes a literal gets the
+ * literal. Nothing is substituted that was not asked for.
+ */
+function fillRunningHead(text: string | undefined, variables: Record<string, string | undefined>): string | undefined {
+  if (!text || !text.includes('{')) return text;
+  return text.replace(/\{(title|organization|author)\}/g, (match, name: string) => variables[name] ?? match);
+}
+
+/** One header or footer paragraph: the 篇眉 text, the page number, or both. */
+function runningHeadParagraph(spec: RunningHead): Paragraph {
+  const runs: TextRun[] = [];
+
+  // A part that draws the page number prints a PAGE field. Any digits beside it
+  // in the source part are whatever Word last laid out — the template's footers
+  // all carry such a cached number — so they are not content and are not copied.
+  if (!spec.pageNumber && spec.text) {
+    runs.push(new TextRun({ text: spec.text, size: RUNNING_HEAD_SIZE, font: RUNNING_HEAD_FONT }));
+  }
+  if (spec.pageNumber) {
+    runs.push(new TextRun({ children: [PageNumber.CURRENT], size: RUNNING_HEAD_SIZE, font: RUNNING_HEAD_FONT }));
+  }
+
+  return new Paragraph({
+    children: runs,
+    alignment: AlignmentType.CENTER,
+    // The 篇眉 rule: the template's heads draw a 0.5 pt line under the text.
+    ...(spec.rule
+      ? { border: { bottom: { style: BorderStyle.SINGLE, size: 4, space: 1, color: 'auto' } } }
+      : {}),
+  });
+}
+
+/** The paragraph above, wrapped in the part it belongs to. */
+function runningHeadElement<T extends Header | Footer>(kind: 'header' | 'footer', spec: RunningHead): T {
+  const paragraph = runningHeadParagraph(spec);
+  return (kind === 'header'
+    ? new Header({ children: [paragraph] })
+    : new Footer({ children: [paragraph] })) as T;
+}
+
+/**
+ * The header (or footer) group for one part.
+ *
+ * Where the template carries header/footer parts, they decide: an *empty* part
+ * is a suppression rather than a missing head, which is how the university
+ * template keeps the cover head-less (it has no `w:titlePg` anywhere), and an
+ * `even` slot is what puts the thesis title on the even pages.
+ *
+ * A template that carries no such parts keeps the running head and page number
+ * the renderer has always generated — except on the cover, which never gets
+ * either, because that is what a cover is for.
+ */
+function partRunningHeads<T extends Header | Footer>(
+  slots: RunningHeadSlots | undefined,
+  kind: 'header' | 'footer',
+  role: DocumentPartRole,
+  options: {
+    /** The generated head/foot a template without header parts falls back to. */
+    fallbackText?: string;
+    fallbackPageNumber?: boolean;
+    /** `RenderOptions.headerText`, which overrides the default slot's text. */
+    textOverride?: string;
+    /** `{title}` and friends, filled from the document being rendered. */
+    variables?: Record<string, string | undefined>;
+    showPageNumbers: boolean;
+  },
+): RunningHeadGroup<T> | undefined {
+  if (!slots) {
+    if (role === 'cover') return undefined;
+    const text = fillRunningHead(options.textOverride ?? options.fallbackText, options.variables ?? {});
+    const pageNumber = Boolean(options.fallbackPageNumber) && options.showPageNumbers;
+    if (!text && !pageNumber) return undefined;
+    return { default: runningHeadElement<T>(kind, { text, pageNumber }) };
+  }
+
+  const group: RunningHeadGroup<T> = {};
+  for (const slot of ['default', 'even', 'first'] as const) {
+    const spec = slots[slot];
+    if (!spec) continue;
+
+    const text = fillRunningHead(
+      (slot === 'default' ? options.textOverride : undefined) ?? spec.text,
+      options.variables ?? {},
+    );
+    const pageNumber = Boolean(spec.pageNumber) && (kind === 'header' || options.showPageNumbers);
+    if (!text && !pageNumber) continue;
+
+    group[slot] = runningHeadElement<T>(kind, { text, pageNumber, rule: spec.rule });
+  }
+
+  return Object.keys(group).length > 0 ? group : undefined;
+}
+
+/** One `w:sectPr` assembled from a part, plus whether it asks for an even head. */
+function buildPartSection(
+  part: RenderedPart,
+  template: DocumentTemplate,
+  sections: PageSettings[],
+  options: { headerText?: string; variables?: Record<string, string | undefined>; showPageNumbers: boolean },
+): { section: ISectionOptions; evenReference: boolean } {
+  const settings = partSettings(part.role, sections, template);
+  const shared = {
+    textOverride: options.headerText,
+    variables: options.variables,
+    showPageNumbers: options.showPageNumbers,
+  };
+
+  const headers = partRunningHeads<Header>(settings.headers, 'header', part.role, {
+    ...shared,
+    fallbackText: `${template.meta.organization}学位论文`,
+  });
+  const footers = partRunningHeads<Footer>(settings.footers, 'footer', part.role, {
+    ...shared,
+    fallbackPageNumber: true,
+  });
+
+  const section: ISectionOptions = {
+    properties: {
+      ...pageProperties(settings, partPageNumbers(part.role, settings)),
+      // A `w:type="first"` reference does nothing without `w:titlePg`.
+      ...(headers?.first || footers?.first ? { titlePage: true } : {}),
+    },
+    headers,
+    footers,
+    children: part.children,
+  };
+
+  return { section, evenReference: Boolean(headers?.even || footers?.even) };
+}
+
+/**
+ * The single-section layout: every block in one section, with the template's
+ * final geometry and the generated running head and page number. This is what a
+ * template without section information still produces, and what journal and
+ * official documents have always used.
+ */
+function buildSingleSection(
+  children: (Paragraph | Table)[],
+  template: DocumentTemplate,
+  options: { generatedHeader: string; official: boolean; showPageNumbers: boolean },
+): ISectionOptions {
+  const headers = options.official ? undefined : {
+    default: runningHeadElement<Header>('header', { text: options.generatedHeader }),
+  };
+  const footers = options.showPageNumbers ? {
+    default: runningHeadElement<Footer>('footer', { pageNumber: true }),
+  } : undefined;
+
+  return {
+    properties: pageProperties(template.page),
+    headers,
+    footers,
+    children,
+  };
+}
+
 // ── Main Render Function ──────────────────────────────────
 
 /**
@@ -1650,92 +2008,67 @@ function renderOfficialDocument(
 export async function renderDocument(options: RenderOptions): Promise<Buffer> {
   const { template, document: doc, headerText, showPageNumbers = true, contentDir } = options;
 
-  let children: (Paragraph | Table)[] = [];
-
   // Shared across the whole document so list numbering instances stay unique.
   const state = createRenderState();
 
+  // The running head a template without header parts falls back to.
+  const generatedHeader = headerText
+    || (doc.type === 'official' ? '' : `${template.meta.organization}${doc.type === 'journal' ? '学术论文' : '学位论文'}`);
+
+  const templateSections = template.pageSections ?? [];
+  const sections: ISectionOptions[] = [];
+  let evenReference = false;
+
+  // What a `{title}`-style placeholder in a template's running head resolves to.
+  const headVariables: Record<string, string | undefined> = {
+    title: doc.meta.title,
+    organization: template.meta.organization,
+    author: 'author' in doc.meta ? (doc.meta as { author?: string }).author : undefined,
+  };
+
   if (doc.type === 'thesis') {
-    children = renderThesisDocument(doc, template, contentDir, state);
+    const parts = renderThesisParts(doc, template, contentDir, state);
+
+    // A template that declares several sections is what the cover / front matter
+    // / body split is laid out against. One that declares none — an older parsed
+    // JSON, or a hand-written template — keeps the single section it always had.
+    if (templateSections.length > 1) {
+      for (const part of parts) {
+        const built = buildPartSection(part, template, templateSections, {
+          headerText,
+          variables: headVariables,
+          showPageNumbers,
+        });
+        sections.push(built.section);
+        evenReference = evenReference || built.evenReference;
+      }
+    } else {
+      sections.push(buildSingleSection(
+        parts.flatMap(part => part.children),
+        template,
+        { generatedHeader, official: false, showPageNumbers },
+      ));
+    }
   } else if (doc.type === 'journal') {
-    children = renderJournalArticle(doc, template, contentDir, state);
+    sections.push(buildSingleSection(
+      renderJournalArticle(doc, template, contentDir, state),
+      template,
+      { generatedHeader, official: false, showPageNumbers },
+    ));
   } else if (doc.type === 'official') {
-    children = renderOfficialDocument(doc, template, contentDir, state);
+    sections.push(buildSingleSection(
+      renderOfficialDocument(doc, template, contentDir, state),
+      template,
+      { generatedHeader, official: true, showPageNumbers },
+    ));
   } else {
     const type = (doc as { type?: unknown }).type;
     throw new Error(`Unsupported document type: "${String(type)}". Expected 'thesis', 'journal', or 'official'.`);
   }
 
-  // Headers / Footers
-  const headerStr = headerText || (doc.type === 'official' ? '' : `${template.meta.organization}${doc.type === 'journal' ? '学术论文' : '学位论文'}`);
-  const headers = doc.type === 'official' ? undefined : {
-    default: new Header({
-      children: [
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: headerStr,
-              size: 21,
-              font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-        }),
-      ],
-    }),
-  };
-
-  const footers = showPageNumbers ? {
-    default: new Footer({
-      children: [
-        new Paragraph({
-          children: [
-            new TextRun({
-              children: [PageNumber.CURRENT],
-              size: 21,
-              font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', cs: 'Times New Roman' },
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-        }),
-      ],
-    }),
-  } : undefined;
-
-  // ── Build Document ─────────────────────────────────────
-  const sectionProperties: ISectionPropertiesOptions = {
-    page: {
-      size: {
-        width: template.page.width,
-        height: template.page.height,
-      },
-      margin: {
-        top: template.page.margins.top,
-        bottom: template.page.margins.bottom,
-        left: template.page.margins.left,
-        right: template.page.margins.right,
-        // The binding edge: the guide asks for 1 cm on the left.
-        ...(template.page.gutter ? { gutter: template.page.gutter } : {}),
-      },
-    },
-    ...(template.page.columns && template.page.columns > 1
-      ? {
-          column: {
-            count: template.page.columns,
-            space: template.page.columnGutter ?? 708,
-          },
-        }
-      : {}),
-  };
-
   const wordDoc = new Document({
     numbering: { config: LIST_NUMBERING },
-    sections: [{
-      properties: sectionProperties,
-      headers,
-      footers,
-      children,
-    }],
+    sections,
   });
 
   let buffer = await Packer.toBuffer(wordDoc);
@@ -1749,12 +2082,21 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
   buffer = await fixChineseFonts(buffer);
 
   // ── Post-process: document settings ─────────────────────────
-  // 对称页边距 and "refresh fields on open" are both `w:settings` children, not
-  // section properties, so they are written into settings.xml after packing.
-  // `updateFields` matters because the 目录 is a TOC field whose page numbers only
-  // exist once Word evaluates it — and the source template does not set it, so a
-  // generated thesis would otherwise open with an empty table of contents.
-  buffer = await patchSettings(buffer, { mirrorMargins: Boolean(template.page.mirrorMargins) });
+  // 对称页边距, 偶数页页眉 and "refresh fields on open" are all `w:settings`
+  // children, not section properties, so they are written into settings.xml
+  // after packing. `updateFields` matters because the 目录 is a TOC field whose
+  // page numbers only exist once Word evaluates it — and the source template
+  // does not set it, so a generated thesis would otherwise open with an empty
+  // table of contents.
+  //
+  // 偶数页页眉 is written only when the output really asks for an even-page
+  // head: the flag also demotes `w:type="default"` to odd pages, so setting it
+  // while emitting no even reference would leave the even pages' head blank.
+  const templateCarriesHeads = templateSections.some(section => section.headers || section.footers);
+  buffer = await patchSettings(buffer, {
+    mirrorMargins: Boolean(template.page.mirrorMargins),
+    evenAndOddHeaders: evenReference || (Boolean(template.evenAndOddHeaders) && templateCarriesHeads),
+  });
 
   if (options.outputPath) {
     // `-o a/b/c.docx` should behave like `mkdir -p` rather than fail with an
@@ -1784,19 +2126,21 @@ export async function renderDocument(options: RenderOptions): Promise<Buffer> {
  * retained so its package relationship remains valid.
  */
 /**
- * 对称页边距 — mirror the margins on facing pages.
+ * 对称页边距 and 偶数页页眉 — document settings the writer library cannot emit.
  *
  * `ISectionPropertiesOptions` in the writer library has no mirror-margins
- * option, so the flag is written into each section property block after the
- * package is built. Idempotent: a document that already declares it is returned
- * untouched.
+ * option, so the flag is written into the package after it is built. Idempotent:
+ * a document that already declares it is returned untouched.
  */
-async function patchSettings(buffer: Buffer, options: { mirrorMargins: boolean }): Promise<Buffer> {
-  // `w:mirrorMargins` and `w:updateFields` are *document* settings — children of
-  // `w:settings` in `word/settings.xml`. Neither is a legal child of `w:sectPr`,
-  // so writing them into document.xml (as the first attempt did) produces a part
-  // Word ignores or repairs, and a verification that only greps for the string
-  // cannot tell the difference.
+async function patchSettings(
+  buffer: Buffer,
+  options: { mirrorMargins: boolean; evenAndOddHeaders: boolean },
+): Promise<Buffer> {
+  // `w:mirrorMargins`, `w:evenAndOddHeaders` and `w:updateFields` are *document*
+  // settings — children of `w:settings` in `word/settings.xml`. None of them is a
+  // legal child of `w:sectPr`, so writing them into document.xml (as the first
+  // attempt did) produces a part Word ignores or repairs, and a verification that
+  // only greps for the string cannot tell the difference.
   const zip = await JSZip.loadAsync(buffer);
   const entry = zip.file('word/settings.xml');
   if (!entry) return buffer;
@@ -1811,6 +2155,16 @@ async function patchSettings(buffer: Buffer, options: { mirrorMargins: boolean }
 
   if (options.mirrorMargins && !xml.includes('<w:mirrorMargins')) {
     xml = xml.replace(/(<w:settings[^>]*>)/, '$1<w:mirrorMargins/>');
+  }
+
+  // 偶数页页眉. The writer library always emits this element — with
+  // `w:val="false"` when it was not asked for — so a document that wants it has
+  // to rewrite the value. Inserting a second element instead would leave Word
+  // reading the first one, which is `false`.
+  if (options.evenAndOddHeaders) {
+    xml = xml.includes('<w:evenAndOddHeaders')
+      ? xml.replace(/<w:evenAndOddHeaders[^>]*\/>/, '<w:evenAndOddHeaders/>')
+      : xml.replace(/(<w:settings[^>]*>)/, '$1<w:evenAndOddHeaders/>');
   }
 
   if (xml === await entry.async('string')) return buffer;

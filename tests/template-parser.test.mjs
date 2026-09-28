@@ -264,3 +264,114 @@ test('w:firstLineChars wins over the twips value Word stores beside it', async (
   const template = await parseTemplate(buffer, { documentType: 'thesis' });
   assert.equal(template.styles.a.paragraph.firstLineIndent, 480);
 });
+
+/**
+ * A two-section template shaped like a real thesis: an empty 篇眉 part on the
+ * cover, the university's line and a PAGE footer on the body, `upperRoman` on
+ * the first section, and the document-level flags in settings.xml.
+ */
+async function createSectionedTemplate() {
+  const zip = new JSZip();
+  zip.file('word/styles.xml', `<?xml version="1.0"?>
+    <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+      <w:style w:type="paragraph" w:default="1" w:styleId="a"><w:name w:val="Normal"/><w:rPr><w:sz w:val="24"/></w:rPr></w:style>
+    </w:styles>`);
+  zip.file('word/settings.xml', `<?xml version="1.0"?>
+    <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+      <w:mirrorMargins/><w:evenAndOddHeaders/>
+    </w:settings>`);
+  zip.file('word/_rels/document.xml.rels', `<?xml version="1.0"?>
+    <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+      <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
+      <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header2.xml"/>
+      <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+    </Relationships>`);
+  // The cover's even head is an *empty* paragraph: that is how the university
+  // template suppresses it, not `w:titlePg`.
+  zip.file('word/header1.xml', `<?xml version="1.0"?>
+    <w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p/></w:hdr>`);
+  zip.file('word/header2.xml', `<?xml version="1.0"?>
+    <w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr>
+      <w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="auto"/></w:pBdr>
+      <w:jc w:val="center"/><w:rPr><w:sz w:val="21"/></w:rPr></w:pPr>
+      <w:r><w:rPr><w:sz w:val="21"/></w:rPr><w:t>北京科技大学硕士学位论文</w:t></w:r></w:p></w:hdr>`);
+  // A PAGE field plus the cached number Word last laid out — "7" is not content.
+  zip.file('word/footer1.xml', `<?xml version="1.0"?>
+    <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p>
+      <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+      <w:r><w:instrText>PAGE   \\* MERGEFORMAT</w:instrText></w:r>
+      <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+      <w:r><w:t>7</w:t></w:r>
+      <w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`);
+  zip.file('word/document.xml', `<?xml version="1.0"?>
+    <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>
+      <w:p><w:r><w:t>封面</w:t></w:r></w:p>
+      <w:p><w:pPr><w:sectPr>
+        <w:headerReference w:type="even" r:id="rId1"/>
+        <w:pgSz w:w="11906" w:h="16838"/>
+        <w:pgMar w:top="1701" w:right="1701" w:bottom="1134" w:left="1701" w:header="851" w:footer="851" w:gutter="567"/>
+        <w:pgNumType w:fmt="upperRoman"/>
+      </w:sectPr></w:pPr></w:p>
+      <w:p><w:r><w:t>摘要</w:t></w:r></w:p>
+      <w:sectPr>
+        <w:headerReference w:type="default" r:id="rId2"/>
+        <w:footerReference w:type="default" r:id="rId3"/>
+        <w:pgSz w:w="11906" w:h="16838"/>
+        <w:pgMar w:top="1701" w:right="1701" w:bottom="1134" w:left="1701" w:header="851" w:footer="850" w:gutter="567"/>
+        <w:pgNumType w:start="1"/>
+      </w:sectPr>
+    </w:body></w:document>`);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+test('reads each section\'s running heads and page numbering from the parts', async () => {
+  const template = await parseTemplate(await createSectionedTemplate(), { documentType: 'thesis' });
+  const [cover, body] = template.pageSections;
+
+  // 页码 comes from `w:pgNumType`, never from the footer that prints it.
+  assert.equal(cover.pageNumberFormat, 'upperRoman');
+  assert.equal(cover.pageNumberStart, undefined);
+  assert.equal(body.pageNumberStart, 1);
+  assert.equal(body.pageNumberFormat, undefined, 'the format is inherited, then decimal on a restart');
+
+  // An empty part is a suppression, not a missing head.
+  assert.equal(cover.headers.even.text, '');
+  assert.equal(cover.headers.even.pageNumber, false);
+
+  // The head itself, with the 篇眉 rule that draws its 0.5 pt line.
+  assert.equal(body.headers.default.text, '北京科技大学硕士学位论文');
+  assert.equal(body.headers.default.rule, true);
+  assert.equal(body.headers.default.pageNumber, false);
+
+  // OOXML inherits each slot independently: the body declares no even head, yet
+  // it prints the covers's — which is what makes the body look head-less when
+  // only the sections that declare references are read.
+  assert.equal(body.headers.even.text, '');
+
+  // A PAGE field is the page number; the "7" beside it is a cached layout.
+  assert.equal(body.footers.default.pageNumber, true);
+  assert.equal(body.footers.default.text, '7');
+
+  // Both document settings live in settings.xml, and only there.
+  assert.equal(template.evenAndOddHeaders, true);
+  assert.equal(template.page.mirrorMargins, true);
+  assert.equal(cover.mirrorMargins, true);
+  assert.equal(template.page.headerDistance, 851);
+  assert.equal(template.page.footerDistance, 850);
+});
+
+test('leaves evenAndOddHeaders unset when settings.xml does not ask for it', async () => {
+  const zip = await JSZip.loadAsync(await createSectionedTemplate());
+  zip.file('word/settings.xml', `<?xml version="1.0"?>
+    <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:mirrorMargins/></w:settings>`);
+  const template = await parseTemplate(await zip.generateAsync({ type: 'nodebuffer' }), { documentType: 'thesis' });
+
+  assert.equal(template.evenAndOddHeaders, undefined);
+  // `w:val="false"` is how the writer library says "off"; it must not read as on.
+  const off = await JSZip.loadAsync(await createSectionedTemplate());
+  off.file('word/settings.xml', `<?xml version="1.0"?>
+    <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:evenAndOddHeaders w:val="false"/></w:settings>`);
+  const parsedOff = await parseTemplate(await off.generateAsync({ type: 'nodebuffer' }), { documentType: 'thesis' });
+  assert.equal(parsedOff.evenAndOddHeaders, undefined);
+});

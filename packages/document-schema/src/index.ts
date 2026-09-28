@@ -29,6 +29,15 @@ export interface DocumentTemplate {
    * targets. Present only when the document actually declares sections.
    */
   pageSections?: PageSettings[];
+  /**
+   * `<w:evenAndOddHeaders/>` in `word/settings.xml`: the document tells Word that
+   * odd and even pages use different running heads, so a `w:type="even"`
+   * reference is honoured and `w:type="default"` means *odd* pages only.
+   *
+   * This is a document setting, not a section property — writing it into
+   * `w:sectPr` produces a part Word ignores.
+   */
+  evenAndOddHeaders?: boolean;
   styles: Record<string, ParagraphStyle>;
   styleRoles: Record<string, StyleRole>;
   /**
@@ -86,6 +95,59 @@ export interface PageSettings {
   mirrorMargins?: boolean;
   columns?: number;
   columnGutter?: number;
+  /**
+   * `w:pgNumType/@w:fmt`: the format this section numbers its pages in. The
+   * template declares `upperRoman` for the front matter and nothing for the
+   * body, and a section that restarts without naming a format is decimal.
+   */
+  pageNumberFormat?: PageNumberFormat;
+  /**
+   * `w:pgNumType/@w:start`: restart the count at this number here. The template
+   * restarts the front matter at I and the body at 1.
+   */
+  pageNumberStart?: number;
+  /**
+   * The running heads (`w:headerReference`) this section ends up with, one per
+   * OOXML slot, after inheritance from the preceding sections is resolved.
+   *
+   * OOXML inherits each of the six slots independently, so a section that
+   * declares nothing still prints its predecessor's head — the body of the
+   * university template declares no `w:headerReference` of its own yet does
+   * print 北京科技大学硕士学位论文 on odd pages and the thesis title on even ones.
+   */
+  headers?: RunningHeadSlots;
+  /** The footers (`w:footerReference`) this section ends up with, same rules. */
+  footers?: RunningHeadSlots;
+}
+
+/** Page-number formats the generator understands (`w:pgNumType/@w:fmt`). */
+export type PageNumberFormat =
+  | 'decimal' | 'upperRoman' | 'lowerRoman' | 'upperLetter' | 'lowerLetter'
+  | 'chineseCounting' | 'chineseCountingThousand' | 'none';
+
+/**
+ * One running-head/footer slot, as the template's own part defines it. A slot is
+ * absent when no section references a part for it; it is present with `text: ''`
+ * when the template points at an *empty* part, which is how the university
+ * template suppresses the head on the cover.
+ */
+export interface RunningHead {
+  /** Literal text of the referenced part. `''` = the part is empty. */
+  text?: string;
+  /** The part draws a PAGE field, so this slot shows the page number. */
+  pageNumber?: boolean;
+  /** 篇眉: the part asks for a rule under the text (`w:pBdr/w:bottom`). */
+  rule?: boolean;
+}
+
+/**
+ * The three header (or footer) slots a section can carry. `default` is the odd
+ * page's head once `<w:evenAndOddHeaders/>` is set, `first` needs `w:titlePg`.
+ */
+export interface RunningHeadSlots {
+  default?: RunningHead;
+  even?: RunningHead;
+  first?: RunningHead;
 }
 
 // ── Styles (shared) ────────────────────────────────────────

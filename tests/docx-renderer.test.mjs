@@ -501,3 +501,243 @@ test('emits a real TOC field for a 目录 section', async () => {
   assert.match(xml, /目录/);
   assert.match(xml, /第一章 绪论/);
 });
+
+/** Every `w:sectPr` in document order: the section breaks of the document. */
+function sectionProperties(xml) {
+  return [...xml.matchAll(/<w:sectPr[\s\S]*?<\/w:sectPr>/g)].map(match => match[0]);
+}
+
+/** The text of every header (or footer) part in the package. */
+async function runningHeadTexts(zip, kind) {
+  const names = Object.keys(zip.files)
+    .filter(name => new RegExp(`^word/${kind}\\d+\\.xml$`).test(name))
+    .sort();
+  const parts = [];
+  for (const name of names) {
+    const xml = await zip.file(name).async('string');
+    parts.push({
+      name,
+      xml,
+      text: [...xml.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map(match => match[1]).join(''),
+    });
+  }
+  return parts;
+}
+
+test('lays a thesis out as a cover, a front matter and a body section', async () => {
+  // A thesis is not one run of pages. The cover carries no running head and no
+  // page number, the front matter is numbered I, II, III, and the body restarts
+  // at 1 — three page setups, so three sections.
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis',
+      meta: { title: '节理岩体隧道纵向地震易损性分析' },
+      cover: [
+        { type: 'centered_text', text: '北京科技大学硕士学位论文', styleRole: 'cover_title' },
+        { type: 'page_break' },
+      ],
+      sections: [
+        { id: 'abs', type: 'abstract', title: '摘要', content: [{ type: 'paragraph', text: '摘要正文。' }] },
+        { id: 'toc', type: 'toc', title: '目录', content: [] },
+        {
+          id: 'c1', type: 'chapter', number: '1', title: '绪论',
+          content: [{ type: 'paragraph', text: '正文。' }],
+          subsections: [{
+            id: 'c1-1', type: 'chapter', number: '1.1', title: '背景',
+            content: [{ type: 'paragraph', text: '小节正文。' }],
+          }],
+        },
+      ],
+      backMatter: { references: [{ id: '1', text: '一条参考文献.' }] },
+    },
+  });
+  const { zip, xml } = await documentXml(buffer);
+  const sections = sectionProperties(xml);
+
+  assert.equal(sections.length, 3, 'cover + front matter + body');
+  assert.deepEqual(
+    sections.map(section => /<w:headerReference/.test(section)),
+    [false, true, true],
+  );
+
+  // 1. The cover carries no running head and no page number at all — the
+  //    template keeps it head-less by referencing *empty* parts, and there is no
+  //    `w:titlePg` anywhere in it.
+  assert.doesNotMatch(sections[0], /<w:(header|footer)Reference/);
+  assert.match(sections[0], /<w:pgMar[^>]*w:gutter="567"/);
+  // Its own footer distance, straight from the template's 封一 (851, not 850).
+  assert.match(sections[0], /<w:pgMar[^>]*w:footer="851"/);
+
+  // 2. Front matter: Roman numerals restarting at I, and it carries the head and
+  //    the newer footer distance of the 摘要 pages.
+  assert.match(sections[1], /<w:pgNumType w:start="1" w:fmt="upperRoman"\/>/);
+  assert.match(sections[1], /<w:pgMar[^>]*w:header="851"[^>]*w:footer="850"/);
+  assert.match(sections[1], /<w:headerReference w:type="even"/);
+
+  // 3. Body: decimal, restarting at 1 on the 引言 page.
+  assert.match(sections[2], /<w:pgNumType w:start="1" w:fmt="decimal"\/>/);
+  assert.match(sections[2], /<w:footerReference w:type="even"/);
+
+  // The running heads come from the template's header parts, not from a
+  // generated `学位论文` line: odd pages read the university's line, even pages
+  // the template's own head text, both with the 篇眉 rule.
+  const headers = await runningHeadTexts(zip, 'header');
+  const odd = headers.find(part => part.text === '北京科技大学硕士学位论文');
+  assert.ok(odd, `expected the template's odd-page head, got ${JSON.stringify(headers.map(h => h.text))}`);
+  assert.match(odd.xml, /<w:pBdr>[\s\S]*<w:bottom /, '篇眉 rule');
+  assert.ok(
+    headers.some(part => part.text === '现代绿色化学中的物理有机问题'),
+    "the template's even-page head must be written",
+  );
+
+  // The page-number parts print a PAGE field. The digits the template's own
+  // footers still carry are the cached result of Word's last layout, not content.
+  const footers = await runningHeadTexts(zip, 'footer');
+  assert.ok(footers.length > 0);
+  assert.ok(footers.every(part => /PAGE/.test(part.xml)));
+  assert.ok(
+    footers.every(part => part.text === ''),
+    `a cached page number leaked into a footer: ${JSON.stringify(footers.map(f => f.text))}`,
+  );
+
+  // 偶数页页眉 + 对称页边距 are document settings, and the 目录 asks Word to
+  // refresh the field on open.
+  const settings = await zip.file('word/settings.xml').async('string');
+  assert.match(settings, /<w:evenAndOddHeaders\/>/);
+  assert.doesNotMatch(settings, /<w:evenAndOddHeaders w:val="false"/);
+  assert.equal((settings.match(/<w:evenAndOddHeaders/g) ?? []).length, 1, 'written exactly once');
+  assert.match(settings, /<w:mirrorMargins\/>/);
+  assert.match(settings, /<w:updateFields w:val="true"\/>/);
+  assert.doesNotMatch(xml, /mirrorMargins|evenAndOddHeaders/);
+
+  // The guide's typography is untouched by any of this.
+  assert.match(xml, /w:line="579"/);
+  assert.match(xml, /w:hanging="567"/);
+  assert.match(xml, /w:firstLine="480"/);
+  assert.match(xml, /w:line="312"/);
+});
+
+test('keeps one section when the template declares no sections', async () => {
+  // Backwards compatibility: a template JSON without `pageSections` — an older
+  // parse, or one written by hand — still produces the single section it always
+  // did, with the generated running head.
+  const flat = structuredClone(template);
+  delete flat.pageSections;
+
+  const buffer = await renderDocument({
+    outputPath: '', template: flat,
+    document: {
+      type: 'thesis', meta: { title: 'One section' },
+      cover: [{ type: 'centered_text', text: '封面' }],
+      sections: [
+        { id: 'abs', type: 'abstract', title: '摘要', content: [] },
+        { id: 'c1', type: 'chapter', title: '第一章', content: [] },
+      ],
+    },
+  });
+  const { zip, xml } = await documentXml(buffer);
+
+  assert.equal(sectionProperties(xml).length, 1);
+  const headers = await runningHeadTexts(zip, 'header');
+  assert.ok(headers.some(part => part.text === '北京科技大学学位论文'), 'the generated head is kept');
+
+  // Without any even-page head, `w:evenAndOddHeaders` must NOT be set: the flag
+  // demotes `w:type="default"` to odd pages, so it would blank the even pages.
+  const settings = await zip.file('word/settings.xml').async('string');
+  assert.doesNotMatch(settings, /<w:evenAndOddHeaders\/>/);
+});
+
+test('writes an even-page head, and the flag it needs, from the template', async () => {
+  // 偶数页页眉: the guide puts the thesis title on the even pages. A template
+  // says so with a `w:type="even"` reference, and `{title}` stands for the title
+  // of the document being rendered — a template cannot know it.
+  const withEvenHead = structuredClone(template);
+  withEvenHead.page = {
+    ...withEvenHead.page,
+    headers: { default: { text: '北京科技大学硕士学位论文', rule: true }, even: { text: '{title}' } },
+    footers: { default: { pageNumber: true } },
+  };
+  withEvenHead.pageSections = [
+    { width: 11906, height: 16838, margins: { top: 1701, bottom: 1134, left: 1701, right: 1701 }, columns: 1 },
+    { ...withEvenHead.page },
+  ];
+  // The template asks for it; the flag must reach settings.xml — as `true`, not
+  // as the `w:val="false"` the writer library always emits.
+  withEvenHead.evenAndOddHeaders = true;
+
+  const buffer = await renderDocument({
+    outputPath: '', template: withEvenHead,
+    document: {
+      type: 'thesis', meta: { title: '节理岩体隧道' }, cover: [{ type: 'centered_text', text: '封面' }],
+      sections: [{ id: 'c1', type: 'chapter', title: '第一章', content: [] }],
+    },
+  });
+  const { zip, xml } = await documentXml(buffer);
+
+  assert.match(xml, /<w:headerReference w:type="even"/);
+  const headers = await runningHeadTexts(zip, 'header');
+  assert.ok(headers.some(part => part.text === '节理岩体隧道'), "the even head carries this document's title");
+  assert.ok(headers.some(part => part.text === '北京科技大学硕士学位论文'));
+
+  const settings = await zip.file('word/settings.xml').async('string');
+  assert.match(settings, /<w:evenAndOddHeaders\/>/);
+  assert.doesNotMatch(settings, /<w:evenAndOddHeaders w:val="false"/);
+  assert.equal((settings.match(/<w:evenAndOddHeaders/g) ?? []).length, 1);
+});
+
+test('drops the explicit page break a part ends with', async () => {
+  // The cover in the sample content ends with a `page_break`, left over from when
+  // the whole document was one section. With a section break after it that would
+  // print an empty page.
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Break' },
+      cover: [{ type: 'centered_text', text: '封面行' }, { type: 'page_break' }],
+      sections: [{ id: 'abs', type: 'abstract', title: '摘要', content: [{ type: 'paragraph', text: '摘要。' }] }],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+  const sections = sectionProperties(xml);
+
+  assert.equal(sections.length, 2);
+  // One break — the section break. The cover's own `w:br w:type="page"` is gone.
+  assert.equal((xml.match(/<w:br w:type="page"\/>/g) ?? []).length, 0);
+  assert.doesNotMatch(sections[0], /<w:(header|footer)Reference/);
+  assert.match(sections[1], /<w:headerReference w:type="default"/);
+});
+
+test('turns on titlePg for a template that references a first-page head', async () => {
+  // A `w:type="first"` reference is inert without `w:titlePg`, so the section has
+  // to ask for it — the writer library exposes it as `titlePage`.
+  const withFirstHead = structuredClone(template);
+  withFirstHead.page = {
+    ...withFirstHead.page,
+    headers: { first: { text: '内部资料' }, default: { text: '北京科技大学硕士学位论文' } },
+    footers: { default: { pageNumber: true }, first: { pageNumber: false, text: '' } },
+  };
+  withFirstHead.pageSections = [
+    { width: 11906, height: 16838, margins: { top: 1701, bottom: 1134, left: 1701, right: 1701 }, columns: 1 },
+    { ...withFirstHead.page },
+  ];
+
+  const buffer = await renderDocument({
+    outputPath: '', template: withFirstHead,
+    document: {
+      type: 'thesis', meta: { title: 'First page' }, cover: [{ type: 'centered_text', text: '封面' }],
+      sections: [{ id: 'c1', type: 'chapter', title: '第一章', content: [] }],
+    },
+  });
+  const { zip, xml } = await documentXml(buffer);
+  const sections = sectionProperties(xml);
+
+  assert.match(xml, /<w:titlePg\/>/);
+  assert.match(xml, /<w:headerReference w:type="first"/);
+  // An *empty* part stays empty: no reference, so the first page keeps the head
+  // it inherits rather than printing a blank one.
+  assert.doesNotMatch(xml, /<w:footerReference w:type="first"/);
+  assert.doesNotMatch(sections[0], /<w:titlePg\/>/, 'the cover is not a title page');
+  const headers = await runningHeadTexts(zip, 'header');
+  assert.ok(headers.some(part => part.text === '内部资料'));
+});
