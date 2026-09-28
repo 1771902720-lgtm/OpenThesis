@@ -250,10 +250,11 @@ Measured against two authorities: `《北京科技大学研究生学位论文书
 | 特殊标题 (摘要/目录/序/附录/致谢/参考文献) | `w:line="579"` (2.41 倍), 340/330 — asserted in `tests/docx-renderer.test.mjs` |
 | 图题 / 表题 | 黑体 10.5pt centred; the table caption has its own role and spacing |
 | 参考文献条目 | 宋体 12pt, hanging 1cm, 10/10/312 |
-| 页码与篇眉 | page numbers and a running head are emitted |
+| 页码与篇眉 | three sections: the cover has no head and no number, the front matter is `upperRoman` from I, the body restarts at 1 in decimal. The heads come from the template's own `header*.xml` parts — odd pages 北京科技大学硕士学位论文, even pages the template's title — with the 篇眉 0.5 pt rule, and `<w:evenAndOddHeaders/>` reaches `settings.xml` |
+| 每节的页面设置 | each part carries its own `w:pgMar` (the template's cover footer distance is 851, the body's 850), `w:pgSz`, gutter and columns |
 | 封面三级样式 | `cover_title` / `cover_line` / `cover_meta` resolve from the template: 小二 18pt bold centred, 四号 14pt bold justified, 五号 10.5pt |
 | 目录 | a `type: "toc"` section emits the 目录 heading plus a real `TOC \h \o "1-3"` field |
-| 装订线 1cm + 对称页边距 | `w:gutter="567"` and `w:mirrorMargins`; the accepted thesis alternates 4.00/3.00 cm columns |
+| 装订线 1cm + 对称页边距 | `w:gutter="567"` and `w:mirrorMargins`; the accepted thesis alternates 4.00/3.00 cm columns. `w:mirrorMargins` is read from `settings.xml`, where it is actually declared |
 
 **One step stays manual.** The directory page numbers come from the `TOC` field,
 which only Word can evaluate: after `thesis build`, open the document and update
@@ -269,45 +270,48 @@ engine, so it cannot know on which page a chapter lands.
 2. **TOC entry styles.** The field is emitted, but `TOC1/2/3` are still mapped to
    `paragraph`, so the entries Word generates keep Word's own TOC formatting
    rather than the template's.
-3. **Front/back-matter sections.** The thesis uses a different footer distance in
-   the front matter (1.68 cm) than in the body (2.36 cm). The renderer still
-   emits a single section, so only one distance can be produced.
+3. **Sections that do not line up with a part boundary.** The renderer emits the
+   cover, the front matter and the body; a template that changes its setup
+   mid-chapter (a landscape page, a two-column passage) is still flattened into
+   whichever part it falls in.
 4. **Automatic chapter numbering.** The template's `numbering.xml` produces `1`,
    `1.1`, `2.3.3`; the renderer emits real list numbering for lists but not for
    headings, so a heading's number is whatever the content JSON says.
 5. **Not expressible at all** (needs Word, documented rather than attempted):
    rasterised auto-numbers, right-aligned equation numbers, TOC dot leaders,
-   the 页眉 bottom rule, and English caption/title lines as separate styles.
+   and English caption/title lines as separate styles.
+6. **`w:docGrid`.** The template snaps text to a 312-twip line grid
+   (`type="linesAndChars"` in the body); the writer library emits its own
+   `linePitch="360"`, so a generated page will not break lines exactly where the
+   template's does.
+7. **A template's even-page head is a literal.** `header4.xml` carries the sample
+   thesis's own title, so a generated document prints that title unless the
+   template writes `{title}` — which the renderer fills from the document being
+   rendered (`{organization}` and `{author}` too). Nothing is substituted that the
+   template did not ask for.
 
-### Found by reading the template's own parts (not yet fixed)
+### Found by reading the template's own parts
 
-The template package holds 47 parts; the tool opens two of them
-(`styles.xml`, `document.xml`). Reading the rest turned up these, each with the
-file it comes from:
+The template package holds 47 parts; the tool now opens six of them
+(`styles.xml`, `document.xml`, `settings.xml`, `document.xml.rels` and the
+`header*/footer*` parts the document references), and still ignores the rest.
+What reading them turned up, and what is still open:
 
-6. **Headers and footers are hardcoded.** The renderer writes
-   `${organization}学位论文` and a centred page number, ignoring the template
-   entirely. The template's 篇眉 is centred 五号 with a 0.5 pt bottom border, odd
-   pages read 北京科技大学硕士学位论文 and even pages carry the thesis title —
-   which additionally needs `<w:evenAndOddHeaders/>` in `settings.xml`, never
-   written, so even-page heads are unreachable even once they are emitted.
-   Cover suppression is by referencing *empty* header parts; there is no
-   `titlePg` anywhere in the template. (`word/header*.xml`, `word/footer*.xml`)
-7. **Chapter numbers exist only in `numbering.xml`.** They are bound to styles
+1. **Chapter numbers exist only in `numbering.xml`.** They are bound to styles
    through `w:lvl/w:pStyle` plus the style's `w:numPr` (`%1`, `%1.%2`, `%1.%2.%3`
    for `1`, `u2`, `u3`; `附录 %1` from numId 4). A regex for `numPr|numId` over
    the parser's output is false, so nothing survives. Watch numId 0 on `u4` and
    the figure captions: that means "remove numbering", and a generator that
    treats every numId as "apply numbering" gets it backwards.
-8. **`w:beforeLines` / `w:afterLines` are unparsed**, so `ua` reports 10 twips
+2. **`w:beforeLines` / `w:afterLines` are unparsed**, so `ua` reports 10 twips
    where the template means 0.1 line; and `firstLineChars` is converted with the
    style's *own* size rather than the inherited one, so `af8`/`aff` record 480
    where 420 is right.
-9. **Equations change representation.** The template's twelve formulas are all
+3. **Equations change representation.** The template's twelve formulas are all
    OLE objects (8× MathType `Equation.DSMT4`, 4× AutoCAD) with WMF previews — it
    has **zero** `m:oMath` — while the renderer emits native OMML, and centres it
    where the template right-aligns at tab stop 8820. Its `MTConvertedEquation`
    style is `Cambria Math` italic and is never applied.
-10. **`fixChineseFonts` is over-broad.** It strips every `w:*Theme` attribute and
-    rewrites Latin `w:eastAsia` values to 仿宋. Harmless for this template,
-    hostile to one that says what it means.
+4. **`fixChineseFonts` is over-broad.** It strips every `w:*Theme` attribute and
+   rewrites Latin `w:eastAsia` values to 仿宋. Harmless for this template,
+   hostile to one that says what it means.
