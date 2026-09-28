@@ -1053,14 +1053,14 @@
     "u0": "reference_item",
     "a3": "paragraph",
     "a4": "paragraph",
-    "TOC3": "paragraph",
+    "TOC3": "toc_entry",
     "a7": "paragraph",
     "a8": "paragraph",
     "aa": "paragraph",
     "ac": "paragraph",
-    "TOC1": "paragraph",
+    "TOC1": "toc_entry",
     "ae": "paragraph",
-    "TOC2": "paragraph",
+    "TOC2": "toc_entry",
     "af": "paragraph",
     "af5": "paragraph",
     "Default": "paragraph",
@@ -1075,7 +1075,7 @@
     "P4": "paragraph",
     "u7": "paragraph",
     "u9": "paragraph",
-    "TOC10": "paragraph",
+    "TOC10": "toc_entry",
     "afe": "paragraph",
     "aff": "paragraph"
   },
@@ -1090,7 +1090,8 @@
     "reference_item": "u0",
     "cover_title": "coverTitle",
     "cover_line": "coverLine",
-    "cover_meta": "coverMeta"
+    "cover_meta": "coverMeta",
+    "toc_entry": "TOC1"
   },
   "styleInheritance": {
     "1": "u1",

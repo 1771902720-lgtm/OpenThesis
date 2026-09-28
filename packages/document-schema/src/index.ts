@@ -166,7 +166,8 @@ export interface BaseBlock { type: BlockType; id?: string; }
 export type StyleRole = BlockType
   | 'table_header' | 'figure_caption' | 'table_caption'
   | 'section_heading' | 'reference_item'
-  | 'cover_title' | 'cover_line' | 'cover_meta';
+  | 'cover_title' | 'cover_line' | 'cover_meta'
+  | 'toc_entry';
 
 export interface HeadingBlock extends BaseBlock {
   type: 'heading1' | 'heading2' | 'heading3' | 'heading4';

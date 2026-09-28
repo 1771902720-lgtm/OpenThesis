@@ -731,6 +731,9 @@ function detectStyleRoles(
     { regex: /^(u?标题|u?附录标题|.*标题\s*不入目录|摘要|目录|致谢|参考文献|序)$/i, role: 'section_heading' },
     // Reference entries under that heading.
     { regex: /^u?参考文献条目.*$/i, role: 'reference_item' },
+    // Table-of-contents entries. Word writes them with these styles when the TOC
+    // field is updated; they were being treated as body paragraphs.
+    { regex: /^TOC\s*\d+$/i, role: 'toc_entry' },
     // Cover title
     { regex: /^(封面|Cover|Title|论文题目|题目)$/i, role: 'centered_text' },
     // Equation styles — MathType emits "MT Converted Equation", WPS emits "公式".
