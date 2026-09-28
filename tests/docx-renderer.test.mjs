@@ -410,3 +410,32 @@ test('emits real Word list numbering instead of literal markers', async () => {
   assert.match(xml, /bullet one/);
   assert.match(xml, /ordered two/);
 });
+
+test('applies the guide formatting the built-in template carries', async () => {
+  // One document that exercises the properties added for the university guide,
+  // asserted on the produced OOXML rather than on the template object.
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Guide check' }, cover: [],
+      sections: [
+        { id: 'abs', type: 'abstract', title: '摘要', content: [{ type: 'paragraph', text: '摘要正文。' }] },
+        { id: 'ch', type: 'chapter', title: '第一章', content: [{ type: 'paragraph', text: '正文。' }] },
+      ],
+      backMatter: { references: [{ id: '1', text: '一条参考文献.' }] },
+    },
+  });
+  const { xml } = await documentXml(buffer);
+
+  // 对称页边距 + 装订线 1cm (567 twips) for a bound thesis.
+  assert.match(xml, /<w:mirrorMargins\/>/);
+  assert.match(xml, /w:gutter="567"/);
+  // A section heading is not a chapter heading: 段前17磅/段后16.5磅/2.41倍行距(579),
+  // where heading1 is 340/340 and 1.3倍(312).
+  assert.match(xml, /w:line="579"/);
+  // Hanging indent on headings: 0.75cm at level 1, 1cm at level 2.
+  assert.match(xml, /w:hanging="425"/);
+  // Body: 宋体 小四 with a two-character first-line indent at 1.3 line spacing.
+  assert.match(xml, /w:firstLine="480"/);
+  assert.match(xml, /w:line="312"/);
+});
