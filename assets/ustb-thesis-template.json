@@ -202,8 +202,7 @@
         "alignment": "center",
         "spaceBefore": 340,
         "spaceAfter": 340,
-        "outlineLevel": 0,
-        "hangingIndent": 425
+        "outlineLevel": 0
       },
       "lineSpacing": 312,
       "lineSpacingRule": "auto"
@@ -324,8 +323,7 @@
         "alignment": "center",
         "spaceBefore": 340,
         "spaceAfter": 340,
-        "outlineLevel": 0,
-        "hangingIndent": 425
+        "outlineLevel": 0
       },
       "lineSpacing": 312,
       "lineSpacingRule": "auto"
@@ -504,8 +502,7 @@
         "alignment": "center",
         "spaceBefore": 340,
         "spaceAfter": 330,
-        "outlineLevel": 0,
-        "hangingIndent": 425
+        "outlineLevel": 0
       },
       "lineSpacing": 579,
       "lineSpacingRule": "auto"
@@ -575,8 +572,7 @@
         "alignment": "center",
         "spaceBefore": 340,
         "spaceAfter": 340,
-        "outlineLevel": 0,
-        "hangingIndent": 425
+        "outlineLevel": 0
       },
       "lineSpacing": 312,
       "lineSpacingRule": "auto"
@@ -741,8 +737,7 @@
         "alignment": "center",
         "spaceBefore": 340,
         "spaceAfter": 330,
-        "outlineLevel": 0,
-        "hangingIndent": 425
+        "outlineLevel": 0
       },
       "lineSpacing": 579,
       "lineSpacingRule": "auto"
@@ -861,7 +856,7 @@
         "spaceBefore": 150,
         "spaceAfter": 50
       },
-      "lineSpacing": 360,
+      "lineSpacing": 312,
       "lineSpacingRule": "auto"
     },
     "u0": {
@@ -872,8 +867,7 @@
       },
       "paragraph": {
         "alignment": "justified",
-        "firstLineIndent": 480,
-        "hangingIndent": 240,
+        "hangingIndent": 567,
         "leftIndent": 0,
         "spaceBefore": 10,
         "spaceAfter": 10

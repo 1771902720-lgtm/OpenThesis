@@ -433,8 +433,12 @@ test('applies the guide formatting the built-in template carries', async () => {
   // A section heading is not a chapter heading: 段前17磅/段后16.5磅/2.41倍行距(579),
   // where heading1 is 340/340 and 1.3倍(312).
   assert.match(xml, /w:line="579"/);
-  // Hanging indent on headings: 0.75cm at level 1, 1cm at level 2.
-  assert.match(xml, /w:hanging="425"/);
+  // A hanging indent belongs to a flush-left heading (level 2 = 1cm) and to a
+  // reference entry (1cm, measured in the real thesis). It must NOT sit on a
+  // centred heading: the guide's "0.75cm" cannot survive contact with a centred
+  // line, and the accepted thesis has every chapter heading exactly centred.
+  assert.match(xml, /w:hanging="567"/);
+  assert.doesNotMatch(xml, /w:hanging="425"/);
   // Body: 宋体 小四 with a two-character first-line indent at 1.3 line spacing.
   assert.match(xml, /w:firstLine="480"/);
   assert.match(xml, /w:line="312"/);
