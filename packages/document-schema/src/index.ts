@@ -73,7 +73,17 @@ export interface ParagraphStyle {
   font: FontSettings;
   paragraph: ParagraphFormatting;
   lineSpacing?: number;
+  /**
+   * How `lineSpacing` must be read. `auto` counts 240ths of a line, while
+   * `exact` and `atLeast` are twips. OOXML keeps both numbers in the same
+   * `w:spacing/@w:line` attribute and puts the difference in `w:lineRule`, so
+   * dropping the rule silently reinterpreted every `exact` value as a multiple
+   * of the line height.
+   */
+  lineSpacingRule?: LineSpacingRule;
 }
+
+export type LineSpacingRule = 'auto' | 'exact' | 'atLeast';
 
 /**
  * Run-level formatting. Every field is optional: a parsed template only

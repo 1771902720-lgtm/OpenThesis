@@ -211,3 +211,38 @@ test('derives list nesting from the marker column', () => {
   const dedent = parseMarkdownBlocks('- a\n    - b\n- c');
   assert.deepEqual(dedent.map(block => block.level), [0, 1, 0]);
 });
+
+test('keeps the text that follows a closed display equation', () => {
+  // `$$a=b$$ trailing` was read as an *opening* `$$`, so the scan below ate
+  // every following line up to the next one ending in `$$` — headings included.
+  const blocks = parseMarkdownBlocks('$$a=b$$ trailing\n\nnext paragraph\n\n## Heading');
+  assert.deepEqual(blocks.map(block => block.type), ['equation', 'paragraph', 'paragraph', 'heading2']);
+  assert.equal(blocks[0].latex, 'a=b');
+  assert.equal(blocks[1].text, 'trailing');
+  assert.match(blocks[2].text, /next paragraph/);
+});
+
+test('a leading `---` only strips a block that really is front matter', () => {
+  // Everything between the two rules used to vanish, with `frontMatter: {}` and
+  // no warning, because any later `---` ended a front-matter block.
+  const blocks = parseMarkdownBlocks('---\nplain first line\nplain second line\n---\n# Heading');
+  assert.deepEqual(blocks.map(block => block.type), ['horizontal_rule', 'paragraph', 'horizontal_rule', 'heading1']);
+  assert.match(blocks[1].text, /plain first line/);
+  assert.match(blocks[1].text, /plain second line/);
+
+  // Real front matter is still stripped.
+  assert.deepEqual(parseMarkdownBlocks('---\ntitle: T\n---\n# Heading'), [{ type: 'heading1', text: 'Heading' }]);
+});
+
+test('refuses metadata it cannot honour instead of coercing it', () => {
+  // An unknown category became 通知 and `degree: PhD` became `undefined`, so a
+  // mistyped value was indistinguishable from a deliberate one — and the
+  // validator downstream never saw the invalid value at all.
+  assert.throws(
+    () => parseMarkdown('---\ntype: official\ncategory: BudgetRequest\n---\n# Notice'),
+    /Unsupported official document category: BudgetRequest/,
+  );
+  assert.equal(parseMarkdown('---\ndegree: PhD\n---\n# C').meta.degree, 'doctor');
+  assert.equal(parseMarkdown('---\ndegree: 硕士\n---\n# C').meta.degree, 'master');
+  assert.throws(() => parseMarkdown('---\ndegree: postdoc\n---\n# C'), /Unsupported degree: postdoc/);
+});

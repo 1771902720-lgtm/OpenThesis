@@ -13,6 +13,7 @@ import type {
   PageSettings,
   ParagraphStyle,
   ParagraphFormatting,
+  LineSpacingRule,
   BlockType,
 } from '@openthesis/document-schema';
 
@@ -50,8 +51,10 @@ export async function parseTemplate(
   const stylesParsed = parser.parse(stylesXml);
   const rawStyles = extractRawStyles(stylesParsed);
 
-  // 2. Resolve style inheritance chain
-  const resolvedStyles = resolveStyleInheritance(rawStyles);
+  // 2. Resolve style inheritance chain. A `basedOn` loop is malformed; break it
+  // first so the merged result does not depend on where the walk started.
+  const { styles: acyclicStyles, cycles } = breakStyleCycles(rawStyles);
+  const resolvedStyles = resolveStyleInheritance(acyclicStyles);
 
   // 3. Parse document.xml for page settings
   const docXml = await zip.file('word/document.xml')?.async('string');
@@ -79,7 +82,7 @@ export async function parseTemplate(
     styles[name] = rawToParagraphStyle(raw);
   }
 
-  const warnings = buildWarnings(rawStyles, resolvedStyles, pageSections);
+  const warnings = buildWarnings(rawStyles, resolvedStyles, pageSections, cycles);
 
   return {
     meta,
@@ -103,6 +106,7 @@ function buildWarnings(
   rawStyles: Record<string, RawStyle>,
   resolvedStyles: Record<string, RawStyle>,
   pageSections: PageSettings[],
+  cycles: string[] = [],
 ): string[] {
   const warnings: string[] = [];
   const styleIds = Object.keys(resolvedStyles);
@@ -122,6 +126,15 @@ function buildWarnings(
     const shown = [...missingParents].slice(0, 5).join(', ');
     const more = missingParents.size > 5 ? ` (+${missingParents.size - 5} more)` : '';
     warnings.push(`styles inherit from styles this template does not define: ${shown}${more}.`);
+  }
+
+  if (cycles.length > 0) {
+    const shown = cycles.slice(0, 3).join('; ');
+    const more = cycles.length > 3 ? ` (+${cycles.length - 3} more)` : '';
+    warnings.push(
+      `styles inherit from each other in a loop (${shown}${more}); inheritance stops at the first style `
+      + 'in each loop, so the formatting may not match the source document.',
+    );
   }
 
   const declaresFormatting = styleIds.some(id => {
@@ -349,6 +362,45 @@ function firstElement<T>(value: T | T[] | undefined): T | undefined {
 // ── Style Inheritance Resolution ──────────────────────────
 
 /**
+ * Cut every `basedOn` loop at a canonical point.
+ *
+ * A style whose chain returns to itself is malformed, and the merge used to
+ * depend on which of its styles happened to be resolved first. Dropping the
+ * link that closes the loop — always at the earliest-declared member — makes
+ * the result the same whichever entry point the walk uses, and the loop is
+ * reported through the template's warnings.
+ */
+function breakStyleCycles(
+  styles: Record<string, RawStyle>,
+): { styles: Record<string, RawStyle>; cycles: string[] } {
+  const ids = Object.keys(styles);
+  const cut = new Set<string>();
+  const cycles: string[] = [];
+
+  for (const start of ids) {
+    const path: string[] = [];
+    let current: string | undefined = start;
+    while (current && styles[current] && !path.includes(current) && !cut.has(current)) {
+      path.push(current);
+      current = styles[current].basedOn;
+    }
+    if (!current || !path.includes(current)) continue;
+
+    const loop = path.slice(path.indexOf(current));
+    cut.add(loop.reduce((a, b) => (ids.indexOf(a) <= ids.indexOf(b) ? a : b)));
+    cycles.push(`${loop.join(' → ')} → ${loop[0]}`);
+  }
+
+  if (cut.size === 0) return { styles, cycles };
+
+  const broken: Record<string, RawStyle> = {};
+  for (const [id, style] of Object.entries(styles)) {
+    broken[id] = cut.has(id) ? { ...style, basedOn: undefined } : style;
+  }
+  return { styles: broken, cycles };
+}
+
+/**
  * Resolve the style inheritance chain.
  * In DOCX, styles can be basedOn other styles and only define
  * overrides. We recursively merge all inherited properties.
@@ -470,7 +522,17 @@ function rawToParagraphStyle(raw: RawStyle): ParagraphStyle {
       outlineLevel: raw.pPr?.outlineLvl,
     }),
     lineSpacing: raw.pPr?.spacing?.line,
+    lineSpacingRule: toLineSpacingRule(raw.pPr?.spacing?.lineRule),
   });
+}
+
+/**
+ * OOXML's `w:lineRule`: `auto` measures the line in 240ths, `exact` and
+ * `atLeast` in twips. A value outside that vocabulary is dropped rather than
+ * guessed at.
+ */
+function toLineSpacingRule(value?: string): LineSpacingRule | undefined {
+  return value === 'auto' || value === 'exact' || value === 'atLeast' ? value : undefined;
 }
 
 function mapAlignment(align?: string): ParagraphFormatting['alignment'] | undefined {

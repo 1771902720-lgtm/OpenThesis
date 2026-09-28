@@ -110,20 +110,20 @@ reported symptom is addressed but a related gap remains; **Open** = unchanged.
 | P2-3 | `\begin{aligned}…\end{matrix}` (mismatched name) silently consumes the rest of the input as the environment body. | Fixed — the scanner stops at depth 0 and leaves the index at the mismatched `\end`. |
 | P2-4 | Unknown commands lose their backslash in the AST (`\foo` → run `foo`). | Fixed — `\foo` now stays `\foo`; escaped literals (`\%`) are still bare. |
 | P2-5 | `x^{a}^{b}` silently overwrites the first superscript. | Fixed — the first wins. |
-| P2-6 | Escaped `&` after a row break is mis-detected (`\\&`), merging two cells into one. | Open |
+| P2-6 | Escaped `&` after a row break is mis-detected (`\\&`), merging two cells into one. | Fixed — a character is escaped by an *odd* run of backslashes, so `\\&` is a row break plus a separator and `\&` stays literal. |
 | P2-7 | Only the body-level `w:sectPr` is read; paragraph-level section breaks are ignored. | Fixed — all sections are collected into `pageSections`; only the last is rendered, and that is now warned about. |
 | P2-8 | `removeNSPrefix: false` hardcodes the `w:` prefix; a styles.xml using another prefix yields a zero-style template with no error. | Partial — a zero-style template now warns, but a non-`w:` prefix still parses to nothing. |
-| P2-9 | `basedOn` cycles are accepted and produce order-dependent merges. | Partial — a `basedOn` pointing at a missing style now warns; cycles are still accepted. |
-| P2-10 | `lineSpacing` stores the raw `w:line` and drops `lineRule`, so `auto` (240ths) and `exact` (twips) are conflated. | Open |
+| P2-9 | `basedOn` cycles are accepted and produce order-dependent merges. | Fixed — a loop is cut at its earliest-declared member, so the merge no longer depends on the entry point, and the loop is reported as a warning. A `basedOn` pointing at a missing style still warns. |
+| P2-10 | `lineSpacing` stores the raw `w:line` and drops `lineRule`, so `auto` (240ths) and `exact` (twips) are conflated. | Fixed — `ParagraphStyle.lineSpacingRule` carries the rule from `w:lineRule` through to the rendered `w:spacing`. |
 | P2-11 | Markdown list nesting is `floor(indent / 2)`, so standard 2- and 4-space nesting is mis-levelled. | Fixed — level comes from the marker's column. |
-| P2-12 | `InlineRange` / `RichParagraph` exist in the schema and are referenced nowhere. | Open — documented in `CLAUDE.md`; either implement or remove. |
+| P2-12 | `InlineRange` / `RichParagraph` exist in the schema and are referenced nowhere. | Open — documented in `CLAUDE.md`; either implement or remove. Verified: three declarations and no producer or consumer anywhere in `packages/*/src`. |
 | P2-13 | Lists render as plain text runs with a manual `•` / `1.` prefix, not Word numbering. | Fixed — real OOXML numbering, each list restarting its own counter. |
 | P2-14 | No document validator exists anywhere; the only runtime checks live in the renderer. | Fixed — `validateDocument` / `validateLegacyDocument`, run by `build`. |
-| P2-15 | `$$a=b$$ trailing` mis-parses and then consumes following lines until one ends with `$$`. | Open |
-| P2-16 | A document starting with `---` and no front matter silently drops everything up to the next `---`. | Open |
-| P2-17 | An invalid official `category` silently becomes `通知`; `degree: PhD` silently becomes `undefined`. | Partial — the validator now rejects an invalid category at build time; the Markdown parser still coerces it. |
-| P2-18 | `resolveStyle` scans `styleRoles` linearly for every block — O(styles × blocks). | Open |
-| P2-19 | CLI: no `--version`, no stdin/stdout, no `mkdir -p` for the output directory, no overwrite protection for an existing output. | Partial — the documented `thesis <command>` prefix is now accepted; the rest is open. |
+| P2-15 | `$$a=b$$ trailing` mis-parses and then consumes following lines until one ends with `$$`. | Fixed — only an opener with no second `$$` starts a display block; the text after a closing `$$` becomes a paragraph. |
+| P2-16 | A document starting with `---` and no front matter silently drops everything up to the next `---`. | Fixed — a `---` block is only stripped when its interior is front-matter-shaped, so a thematic break before a heading stays a thematic break. |
+| P2-17 | An invalid official `category` silently becomes `通知`; `degree: PhD` silently becomes `undefined`. | Fixed — an unrecognised category is refused instead of coerced; degree spellings are normalised (`PhD` → `doctor`) and anything else is refused; `validateDocument` also checks `meta.degree`. |
+| P2-18 | `resolveStyle` scans `styleRoles` linearly for every block — O(styles × blocks). | Fixed — `Object.entries(...).find(...)` materialised all 72 pairs before matching (9–11 µs per block, 18–24% of render time); the lookup now stops at the first match. |
+| P2-19 | CLI: no `--version`, no stdin/stdout, no `mkdir -p` for the output directory, no overwrite protection for an existing output. | Partial — the documented `thesis <command>` prefix is now accepted; the rest is open. All four gaps reproduced: `--version` exits 1 with `Unknown command`, a missing output directory fails with `ENOENT`, an existing output is overwritten silently, and `-o -` reports `Missing value for -o`. |
 | P2-20 | Agent-skill documentation mismatches. | Fixed — block sequences, fence info strings, caption precedence, H1 handling, `backMatter`, and the platform-specific validator path are all corrected. |
 
 ### Repository hygiene
@@ -149,7 +149,7 @@ reported symptom is addressed but a related gap remains; **Open** = unchanged.
 | `markdown-parser` | Emphasis requires real delimiters (no intraword `_`, no space-flanked `*`); only tag-shaped `<…>` is stripped and autolinks keep their target. Heading closing-hash requires a space. Front-matter block sequences. Quote-aware list splitting. Single-column tables. Extended fence info strings. List level derived from the marker column. |
 | `assets/ustb-thesis-template.json` | The 72 entries that were byte-identical to the old invented defaults were stripped to empty objects. **This file still needs regenerating from the original `.docx`** (`thesis parse <template.docx>`) to recover any formatting the old parser dropped — see §5. |
 
-Test count: **29 → 81**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
+Test count: **29 → 90**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
 
 ---
 

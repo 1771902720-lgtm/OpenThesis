@@ -639,6 +639,20 @@ const MATRIX_DELIMITERS: Record<MatrixEnvironment, readonly [string, string]> = 
   vmatrix: ['|', '|'], Vmatrix: ['‖', '‖'], cases: ['{', ''], aligned: ['', ''],
 };
 
+/**
+ * True when the character at `index` is escaped by a preceding backslash.
+ *
+ * Only an *odd* run of backslashes escapes: `\&` is a literal ampersand, while
+ * the `&` in `\\&` follows a row break and is a real cell separator. Testing
+ * just the previous character read the second case as an escape and merged two
+ * cells into one.
+ */
+function isEscaped(source: string, index: number): boolean {
+  let backslashes = 0;
+  for (let scan = index - 1; scan >= 0 && source[scan] === '\\'; scan -= 1) backslashes += 1;
+  return backslashes % 2 === 1;
+}
+
 function splitEnvironmentRows(source: string): string[][] {
   const rows: string[][] = [];
   let cells: string[] = [];
@@ -663,7 +677,7 @@ function splitEnvironmentRows(source: string): string[][] {
     if (character === '{') braceDepth += 1;
     else if (character === '}' && braceDepth > 0) braceDepth -= 1;
 
-    if (braceDepth === 0 && environmentDepth === 0 && character === '&' && source[index - 1] !== '\\') {
+    if (braceDepth === 0 && environmentDepth === 0 && character === '&' && !isEscaped(source, index)) {
       pushCell();
       continue;
     }

@@ -152,6 +152,46 @@ test('warns when a template carries no formatting at all', async () => {
   assert.ok(template.warnings.some(w => /carries no typography/.test(w)), JSON.stringify(template.warnings));
 });
 
+test('keeps the line spacing rule apart from the distance', async () => {
+  // `w:lineRule` decides whether `w:line` counts 240ths of a line (auto) or
+  // twips (exact). Dropping it reinterpreted every exact spacing as a multiple.
+  const exact = await parseTemplate(await createTemplateWith({
+    styles: '<w:style w:type="paragraph" w:default="1" w:styleId="a"><w:name w:val="Normal"/>'
+      + '<w:pPr><w:spacing w:line="360" w:lineRule="exact"/></w:pPr></w:style>',
+    body: BODY_SECTION,
+  }), { documentType: 'thesis' });
+  assert.equal(exact.styles.a.lineSpacing, 360);
+  assert.equal(exact.styles.a.lineSpacingRule, 'exact');
+
+  // A style that declares no spacing declares no rule either.
+  const bare = await parseTemplate(await createTemplateWith({
+    styles: '<w:style w:type="paragraph" w:default="1" w:styleId="a"><w:name w:val="Normal"/><w:rPr><w:sz w:val="24"/></w:rPr></w:style>',
+    body: BODY_SECTION,
+  }), { documentType: 'thesis' });
+  assert.equal(bare.styles.a.lineSpacingRule, undefined);
+});
+
+test('breaks a basedOn loop at a fixed point and reports it', async () => {
+  // a → b → a. The merge used to depend on which style was resolved first, and
+  // `a` inherited `b`'s bold back through the loop.
+  const buffer = await createTemplateWith({
+    styles: '<w:style w:type="paragraph" w:default="1" w:styleId="a"><w:name w:val="Normal"/>'
+      + '<w:basedOn w:val="b"/><w:rPr><w:sz w:val="24"/></w:rPr></w:style>'
+      + '<w:style w:type="paragraph" w:styleId="b"><w:name w:val="B"/><w:basedOn w:val="a"/>'
+      + '<w:rPr><w:b/></w:rPr></w:style>',
+    body: BODY_SECTION,
+  });
+  const template = await parseTemplate(buffer, { documentType: 'thesis' });
+
+  assert.ok(template.warnings.some(w => /loop/.test(w)), JSON.stringify(template.warnings));
+  // The loop is cut at `a`, the earliest-declared member, so `a` keeps only what
+  // it declares while `b` still inherits from it.
+  assert.equal(template.styles.a.font.bold, undefined);
+  assert.equal(template.styles.a.font.size, 24);
+  assert.equal(template.styles.b.font.bold, true);
+  assert.equal(template.styles.b.font.size, 24);
+});
+
 test('warns when a style inherits from an undefined style', async () => {
   const buffer = await createTemplateWith({
     styles: '<w:style w:type="paragraph" w:styleId="1"><w:name w:val="heading 1"/><w:basedOn w:val="Missing"/><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>',

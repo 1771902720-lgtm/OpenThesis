@@ -62,6 +62,21 @@ test('parses matrix, cases, and aligned environments with cells and rows', () =>
   assert.equal(aligned.rows.length, 2);
 });
 
+test('keeps a cell separator that follows a row break', () => {
+  // `\\&` is a row break followed by a real separator. Testing only the
+  // previous character read the `&` as escaped and merged two cells into one.
+  const matrix = latexToMathAst('\\begin{matrix}1&2\\\\&3\\end{matrix}')[0];
+  assert.equal(matrix.rows.length, 2);
+  assert.equal(matrix.rows[1].length, 2);
+  assert.deepEqual(matrix.rows[1][0], []);
+  assert.equal(matrix.rows[1][1][0].text, '3');
+
+  // A genuinely escaped ampersand still belongs to its own cell.
+  const escaped = latexToMathAst('\\begin{matrix}a\\&b&c\\end{matrix}')[0];
+  assert.equal(escaped.rows[0].length, 2);
+  assert.equal(escaped.rows[0][0].map(node => node.text ?? '').join(''), 'a&b');
+});
+
 test('preserves scalable left/right delimiters in the AST', () => {
   const node = latexToMathAst('\\left\\langle \\frac{x}{y} \\right\\rangle')[0];
   assert.equal(node.type, 'delimiter');

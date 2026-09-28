@@ -22,6 +22,8 @@ const THESIS_SECTION_TYPES = [
   'list_of_figures', 'list_of_tables', 'references', 'appendix',
 ] as const;
 
+const THESIS_DEGREES = ['bachelor', 'master', 'doctor'] as const;
+
 const JOURNAL_SECTION_TYPES = [
   'introduction', 'methods', 'results', 'discussion', 'conclusion',
   'materials', 'background', 'related_work', 'experiment', 'analysis',
@@ -144,6 +146,12 @@ export function assertValidDocument(input: unknown): asserts input is OpenThesis
 type Report = (path: string, message: string) => void;
 
 function validateThesis(input: Record<string, unknown>, report: Report): void {
+  const meta = input.meta;
+  if (isObject(meta) && meta.degree !== undefined
+      && !THESIS_DEGREES.includes(meta.degree as typeof THESIS_DEGREES[number])) {
+    report('meta.degree', `must be one of ${quoteList(THESIS_DEGREES)}, received ${describe(meta.degree)}`);
+  }
+
   requireArray(input, 'cover', report, (block, path) => validateBlock(block, path, report));
   validateSections(input.sections, 'sections', THESIS_SECTION_TYPES, report);
 

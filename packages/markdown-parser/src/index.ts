@@ -101,6 +101,13 @@ function extractFrontMatter(markdown: string): { body: string; frontMatter: Mark
   const closingIndex = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
   if (closingIndex < 0) return { body: normalized, frontMatter: {} };
 
+  // `---` is also a thematic break. Treating any later `---` as the end of a
+  // front-matter block deleted everything between the two whenever the leading
+  // line was not front matter at all — headings and prose included, silently.
+  if (!looksLikeFrontMatter(lines.slice(1, closingIndex))) {
+    return { body: normalized, frontMatter: {} };
+  }
+
   const frontMatter: MarkdownFrontMatter = {};
   for (let index = 1; index < closingIndex; index += 1) {
     const match = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(lines[index]);
@@ -142,6 +149,30 @@ function extractFrontMatter(markdown: string): { body: string; frontMatter: Mark
   }
 
   return { body: lines.slice(closingIndex + 1).join('\n'), frontMatter };
+}
+
+/**
+ * Whether a `---`-delimited block really is front matter.
+ *
+ * It must hold at least one `key:` line and nothing that could not belong to
+ * one, its block-sequence items and indented scalar continuations aside. A
+ * `# comment` line is deliberately *not* accepted: in Markdown it is far more
+ * likely to be a heading between two thematic breaks, and accepting it would
+ * put the silent deletion back.
+ */
+function looksLikeFrontMatter(interior: string[]): boolean {
+  const meaningful = interior.filter(line => line.trim() !== '');
+  // `---\n---` is a deliberate empty block: there is nothing to lose.
+  if (meaningful.length === 0) return true;
+
+  let sawKey = false;
+  for (const line of meaningful) {
+    if (/^[A-Za-z][\w-]*:(\s|$)/.test(line)) { sawKey = true; continue; }
+    if (/^\s+-(\s|$)/.test(line)) continue;   // block sequence item
+    if (/^\s+\S/.test(line)) continue;        // folded or literal scalar continuation
+    return false;
+  }
+  return sawKey;
 }
 
 function parseFrontMatterValue(value: string): FrontMatterValue {
@@ -196,7 +227,10 @@ function tokenize(markdown: string): MarkdownItem[] {
       continue;
     }
 
-    if (trimmed === '$$' || (trimmed.startsWith('$$') && !trimmed.endsWith('$$'))) {
+    // An opener carrying no second `$$` starts a multi-line block. `$$a=b$$
+    // trailing` is a complete equation, and reading it as an opener made the
+    // scan below swallow every following line up to the next `$$`.
+    if (trimmed === '$$' || (trimmed.startsWith('$$') && !trimmed.slice(2).includes('$$'))) {
       const equation: string[] = [];
       if (trimmed !== '$$') equation.push(trimmed.slice(2));
       index += 1;
@@ -211,8 +245,15 @@ function tokenize(markdown: string): MarkdownItem[] {
       items.push({ kind: 'block', block: { type: 'equation', latex: equation.join(' ').trim() } });
       continue;
     }
-    if (/^\$\$[\s\S]*\$\$$/.test(trimmed)) {
-      items.push({ kind: 'block', block: { type: 'equation', latex: trimmed.slice(2, -2).trim() } });
+    const displayMath = /^\$\$([\s\S]*?)\$\$(.*)$/.exec(trimmed);
+    if (displayMath) {
+      items.push({ kind: 'block', block: { type: 'equation', latex: displayMath[1].trim() } });
+      // Text after the closing `$$` is body text belonging to the paragraph that
+      // follows, not part of the equation.
+      const trailing = displayMath[2].trim();
+      if (trailing) {
+        items.push({ kind: 'block', block: { type: 'paragraph', text: cleanInline(trailing) } });
+      }
       index += 1;
       continue;
     }
@@ -431,9 +472,15 @@ function createOfficialDocument(
   metadata: MarkdownFrontMatter,
 ): OfficialDocument {
   const categoryValue = stringValue(metadata, 'documentCategory', 'category');
-  const documentCategory = OFFICIAL_CATEGORIES.includes(categoryValue as OfficialDocCategory)
-    ? categoryValue as OfficialDocCategory
-    : '通知';
+  // An unknown category used to become 通知 silently, so a notice with a
+  // mistyped category rendered as a different kind of document and no check
+  // could see it. An absent category still defaults; a wrong one is an error.
+  if (categoryValue !== undefined && !OFFICIAL_CATEGORIES.includes(categoryValue as OfficialDocCategory)) {
+    throw new Error(
+      `Unsupported official document category: ${categoryValue}. Expected one of: ${OFFICIAL_CATEGORIES.join(', ')}`,
+    );
+  }
+  const documentCategory = (categoryValue as OfficialDocCategory | undefined) ?? '通知';
   const body = items.map(item => item.kind === 'heading'
     ? ({ type: `heading${Math.min(item.level, 4)}`, text: item.text } as ContentBlock)
     : item.block);
@@ -584,8 +631,32 @@ function splitList(value: string): string[] {
   return items.map(stripQuotes).map(item => item.trim()).filter(Boolean);
 }
 
+/**
+ * Spellings an author is likely to write for the three degree levels.
+ *
+ * Anything else is refused rather than dropped: `degree: PhD` used to become
+ * `undefined`, which JSON.stringify then removed, leaving no way to tell "the
+ * author wrote a doctorate" from "no degree was given".
+ */
+const DEGREE_ALIASES: Record<string, ThesisDocument['meta']['degree']> = {
+  bachelor: 'bachelor', bachelors: 'bachelor', bsc: 'bachelor', 'b.sc': 'bachelor',
+  undergraduate: 'bachelor', 本科: 'bachelor', 学士: 'bachelor',
+  master: 'master', masters: 'master', msc: 'master', 'm.sc': 'master', ma: 'master',
+  graduate: 'master', 硕士: 'master', 研究生: 'master',
+  doctor: 'doctor', doctorate: 'doctor', doctoral: 'doctor', phd: 'doctor',
+  'ph.d': 'doctor', 博士: 'doctor',
+};
+
 function degreeValue(value: FrontMatterValue | undefined): ThesisDocument['meta']['degree'] {
-  return value === 'bachelor' || value === 'master' || value === 'doctor' ? value : undefined;
+  if (value === undefined) return undefined;
+  const candidate = typeof value === 'string' ? value.trim().toLowerCase() : String(value);
+  const degree = DEGREE_ALIASES[candidate];
+  if (!degree) {
+    throw new Error(
+      `Unsupported degree: ${candidate}. Expected bachelor, master or doctor (or a common spelling such as PhD).`,
+    );
+  }
+  return degree;
 }
 
 function articleTypeValue(value: FrontMatterValue | undefined): JournalArticle['meta']['articleType'] {

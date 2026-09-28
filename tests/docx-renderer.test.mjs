@@ -115,6 +115,61 @@ test('writes configured multi-column sections to OOXML', async () => {
   assert.match(xml, /<w:cols[^>]*w:space="720"[^>]*w:num="2"|<w:cols[^>]*w:num="2"[^>]*w:space="720"/);
 });
 
+test('carries an exact line-spacing rule into the OOXML', async () => {
+  const exactTemplate = structuredClone(template);
+  const paragraphStyleId = Object.entries(exactTemplate.styleRoles)
+    .find(([, role]) => role === 'paragraph')[0];
+  exactTemplate.styles[paragraphStyleId] = {
+    ...exactTemplate.styles[paragraphStyleId],
+    lineSpacing: 360,
+    lineSpacingRule: 'exact',
+  };
+
+  const buffer = await renderDocument({
+    outputPath: '', template: exactTemplate,
+    document: {
+      type: 'thesis', meta: { title: 'Spacing' }, cover: [],
+      sections: [{
+        id: 'body', type: 'chapter', title: 'Body',
+        content: [{ type: 'paragraph', text: 'Body text.' }],
+      }],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+  // Without the rule Word reads 360 as 1.5 lines instead of 18 points.
+  assert.match(
+    xml,
+    /<w:spacing[^>]*w:line="360"[^>]*w:lineRule="exact"|<w:spacing[^>]*w:lineRule="exact"[^>]*w:line="360"/,
+  );
+});
+
+test('finds a style role without scanning the whole table per block', async () => {
+  // `Object.entries(styleRoles).find(...)` materialised all 72 pairs before
+  // matching, which cost 9-11µs per block — about a fifth of render time.
+  let reads = 0;
+  const countingTemplate = structuredClone(template);
+  countingTemplate.styleRoles = new Proxy(countingTemplate.styleRoles, {
+    get(target, key, receiver) {
+      reads += 1;
+      return Reflect.get(target, key, receiver);
+    },
+  });
+
+  const blocks = Array.from({ length: 40 }, (_, index) => ({ type: 'paragraph', text: `Paragraph ${index}.` }));
+  await renderDocument({
+    outputPath: '', template: countingTemplate,
+    document: {
+      type: 'thesis', meta: { title: 'Role lookup' }, cover: [],
+      sections: [{ id: 'body', type: 'chapter', title: 'Body', content: blocks }],
+    },
+  });
+
+  // A per-block scan reads every role for every block (≈2900 here); stopping at
+  // the first match reads a handful. Counting property reads keeps the test
+  // independent of machine speed.
+  assert.ok(reads < blocks.length * 5, `${reads} role reads for ${blocks.length} blocks — the table is scanned per block`);
+});
+
 test('writes supported LaTeX as native Office Math elements', async () => {
   const buffer = await renderDocument({
     outputPath: '', template,

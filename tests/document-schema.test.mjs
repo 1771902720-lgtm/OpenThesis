@@ -183,3 +183,16 @@ test('formatIssues renders paths for a CLI error message', () => {
   const text = formatIssues([{ path: 'sections[0].id', message: 'must be a non-empty string' }]);
   assert.equal(text, '  sections[0].id: must be a non-empty string');
 });
+
+test('rejects a degree outside the schema vocabulary', () => {
+  // `degree: PhD` used to reach the JSON as `undefined`, which JSON.stringify
+  // then removed — the key vanished rather than being reported.
+  const broken = validThesis();
+  broken.meta.degree = 'PhD';
+  assert.equal(validateDocument(broken)[0].path, 'meta.degree');
+  assert.match(validateDocument(broken)[0].message, /received "PhD"/);
+
+  const good = validThesis();
+  good.meta.degree = 'doctor';
+  assert.deepEqual(validateDocument(good), []);
+});
