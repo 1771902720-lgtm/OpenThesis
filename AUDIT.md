@@ -149,7 +149,7 @@ reported symptom is addressed but a related gap remains; **Open** = unchanged.
 | `markdown-parser` | Emphasis requires real delimiters (no intraword `_`, no space-flanked `*`); only tag-shaped `<…>` is stripped and autolinks keep their target. Heading closing-hash requires a space. Front-matter block sequences. Quote-aware list splitting. Single-column tables. Extended fence info strings. List level derived from the marker column. |
 | `assets/ustb-thesis-template.json` | The 72 entries that were byte-identical to the old invented defaults were stripped to empty objects. **This file still needs regenerating from the original `.docx`** (`thesis parse <template.docx>`) to recover any formatting the old parser dropped — see §5. |
 
-Test count: **29 → 79**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
+Test count: **29 → 81**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
 
 ---
 

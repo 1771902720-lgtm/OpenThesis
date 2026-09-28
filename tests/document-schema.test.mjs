@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { validateDocument, validateLegacyDocument, assertValidDocument, formatIssues } from '../packages/document-schema/dist/index.js';
 
 const validThesis = () => ({
@@ -43,10 +43,25 @@ test('accepts well-formed documents of every type', () => {
   assert.deepEqual(validateDocument(validOfficial()), []);
 });
 
-test('accepts the shipped legacy example content', () => {
-  // examples/sample-thesis.json is the legacy {cover_blocks, body_blocks} shape.
-  const example = JSON.parse(readFileSync('examples/sample-thesis.json', 'utf8'));
-  assert.deepEqual(validateLegacyDocument(example), []);
+/** Examples the documentation points a reader at. They must stay loadable. */
+const SHIPPED_EXAMPLES = ['sample-thesis.json', 'test-image.json'];
+
+test('every shipped example validates under its own validator', () => {
+  // Nothing in the repository referenced examples/test-image.json, so when the
+  // validator started requiring `section.type` the file went on failing
+  // `build` with no test to notice. Walk the directory instead of naming one
+  // file, so a new example is covered the moment it lands.
+  const present = readdirSync('examples').filter(name => name.endsWith('.json'));
+  for (const name of SHIPPED_EXAMPLES) {
+    assert.ok(present.includes(name), `examples/${name} is a documented example and must exist`);
+  }
+
+  for (const name of present) {
+    const example = JSON.parse(readFileSync(`examples/${name}`, 'utf8'));
+    const legacy = !('type' in example);
+    const issues = legacy ? validateLegacyDocument(example) : validateDocument(example);
+    assert.deepEqual(issues, [], `examples/${name} must validate as ${legacy ? 'legacy content' : example.type}`);
+  }
 });
 
 test('validates the legacy format too', () => {

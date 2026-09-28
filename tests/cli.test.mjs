@@ -142,3 +142,40 @@ test('init honours the --type= flag form', () => {
   assert.equal(existsSync(join(dir, 'journal-content.json')), true);
   assert.equal(existsSync(join(dir, 'thesis-content.json')), false);
 });
+
+test('build rejects invalid structured content, naming the offending path', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'content.json');
+  const output = join(dir, 'out.docx');
+  // `ThesisSection.type` is required by the schema the docs point at. The
+  // renderer ignores it and used to render this happily, so nothing caught it.
+  writeFileSync(input, JSON.stringify({
+    type: 'thesis', meta: { title: 'Bad' }, cover: [],
+    sections: [{ id: 'a', title: 'A', content: [] }],
+  }));
+
+  const result = run(['build', input, '-o', output]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Invalid document content — 1 problem/);
+  assert.match(result.stderr, /sections\[0\]\.type/);
+  // Validation runs before rendering, so a rejected document leaves nothing behind.
+  assert.equal(existsSync(output), false);
+});
+
+test('build rejects invalid legacy content too', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openthesis-cli-'));
+  const input = join(dir, 'legacy.json');
+  const output = join(dir, 'out.docx');
+  // The renderer padded and truncated mismatched rows silently, which lost data.
+  writeFileSync(input, JSON.stringify({
+    title: 'Legacy',
+    cover_blocks: [],
+    body_blocks: [{ type: 'table', caption: 'C', headers: ['A'], data: [['1', '2']] }],
+  }));
+
+  const result = run(['build', input, '-o', output]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /body_blocks\[0\]\.data\[0\]/);
+  assert.match(result.stderr, /has 2 cells but the table declares 1 column/);
+  assert.equal(existsSync(output), false);
+});
