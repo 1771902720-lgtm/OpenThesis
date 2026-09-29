@@ -476,15 +476,36 @@ function createThesisDocument(
   metadata: MarkdownFrontMatter,
 ): ThesisDocument {
   const author = stringValue(metadata, 'author');
+  const supervisor = stringValue(metadata, 'supervisor');
   const department = stringValue(metadata, 'department', 'institution');
+  const major = stringValue(metadata, 'major');
+  const studentId = stringValue(metadata, 'studentId', 'student_id');
+  const degree = degreeValue(metadata.degree);
   const date = stringValue(metadata, 'date');
-  const cover: ContentBlock[] = [
-    { type: 'spacer', lines: 4 },
-    { type: 'centered_text', text: title, font_size_pt: 22, bold: true },
-  ];
-  if (author) cover.push({ type: 'centered_text', text: author, font_size_pt: 14 });
-  if (department) cover.push({ type: 'centered_text', text: department, font_size_pt: 14 });
-  if (date) cover.push({ type: 'centered_text', text: date, font_size_pt: 14 });
+  const titleEn = stringValue(metadata, 'titleEn', 'title_en');
+  const classificationNumber = stringValue(metadata, 'classificationNumber', 'classification_number');
+
+  const cover: ContentBlock[] = [];
+  if (classificationNumber) {
+    cover.push({ type: 'centered_text', text: `中图分类号：${classificationNumber}`, styleRole: 'cover_meta' });
+  }
+  const degreeText = degree === 'doctor' ? '北京科技大学博士学位论文' : '北京科技大学硕士学位论文';
+  cover.push(
+    { type: 'spacer', lines: 3 },
+    { type: 'centered_text', text: degreeText, styleRole: 'cover_title' },
+    { type: 'spacer', lines: 2 },
+    { type: 'centered_text', text: title, styleRole: 'cover_title' },
+  );
+  if (titleEn) {
+    cover.push({ type: 'centered_text', text: titleEn, styleRole: 'cover_line' });
+  }
+  cover.push({ type: 'spacer', lines: 3 });
+  if (studentId) cover.push({ type: 'centered_text', text: `学　　号：${studentId}`, styleRole: 'cover_line' });
+  if (author) cover.push({ type: 'centered_text', text: `研 究 生：${author}`, styleRole: 'cover_line' });
+  if (supervisor) cover.push({ type: 'centered_text', text: `指导教师：${supervisor}`, styleRole: 'cover_line' });
+  if (department) cover.push({ type: 'centered_text', text: `培养学院：${department}`, styleRole: 'cover_line' });
+  if (major) cover.push({ type: 'centered_text', text: `专　　业：${major}`, styleRole: 'cover_line' });
+  if (date) cover.push({ type: 'centered_text', text: `日　　期：${date}`, styleRole: 'cover_line' });
   cover.push({ type: 'page_break' });
 
   return {

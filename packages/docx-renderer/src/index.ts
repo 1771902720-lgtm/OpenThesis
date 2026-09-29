@@ -15,7 +15,7 @@ import {
   Math as DocxMath, MathRun, MathFraction, MathRadical, MathSuperScript,
   MathSubScript, MathSubSuperScript, MathSum, MathIntegral,
   MathFunction, MathLimitLower, MathLimitUpper, BuilderElement,
-  TableOfContents,
+  TableOfContents, TabStopType,
 } from 'docx';
 import type {
   ISectionOptions, ISectionPropertiesOptions, IPageNumberTypeAttributes,
@@ -435,22 +435,41 @@ function renderEquation(
     equationChildren = [new MathRun(latexToPlainText(block.latex))];
   }
 
-  const children = [new DocxMath({ children: equationChildren })];
   if (block.number) {
-    children.push(new TextRun({
-      text: `    (${block.number})`,
-      size: style.font.size,
-      font: {
-        ascii: style.font.name,
-        hAnsi: style.font.name,
-        eastAsia: style.font.eastAsia,
-        cs: style.font.name,
-      },
-    }));
+    const page = template.page;
+    const printableWidth = Math.max(
+      1200,
+      (page?.width ?? 11906) - (page?.margins?.left ?? 1701) - (page?.margins?.right ?? 1701) - (page?.gutter ?? 0),
+    );
+    const centerPos = Math.round(printableWidth / 2);
+    const rightPos = printableWidth;
+
+    return new Paragraph({
+      alignment: AlignmentType.LEFT,
+      tabStops: [
+        { type: TabStopType.CENTER, position: centerPos },
+        { type: TabStopType.RIGHT, position: rightPos },
+      ],
+      children: [
+        new TextRun('\t'),
+        new DocxMath({ children: equationChildren }),
+        new TextRun({
+          text: `\t(${block.number})`,
+          size: style.font.size ?? 24,
+          font: {
+            ascii: style.font.name ?? 'Times New Roman',
+            hAnsi: style.font.name ?? 'Times New Roman',
+            eastAsia: style.font.eastAsia ?? '宋体',
+            cs: style.font.name ?? 'Times New Roman',
+          },
+        }),
+      ],
+      spacing: { before: 120, after: 120, ...lineStyle(style, 312) },
+    });
   }
 
   return new Paragraph({
-    children,
+    children: [new DocxMath({ children: equationChildren })],
     alignment: AlignmentType.CENTER,
     spacing: { before: 120, after: 120, ...lineStyle(style, 312) },
   });
@@ -731,8 +750,15 @@ function renderTable(
   const headerStyle = resolveStyle(template, 'table_header', docType);
   const bodyStyle = resolveStyle(template, 'table', docType);
 
-  const showGrid = block.showGridlines !== false;
-  const showShading = block.headerShading !== false;
+  const isAcademic = docType === 'thesis' || docType === 'journal' || template.meta?.documentType === 'thesis' || template.meta?.documentType === 'journal';
+  // Standard academic thesis (GB/T 7713 / USTB guide) requires 三线表:
+  // 1.5pt top/bottom border, 0.75pt header bottom border, no vertical borders, no header shading.
+  const isThreeLine = isAcademic
+    ? block.showGridlines !== true
+    : block.showGridlines === false;
+
+  const showGrid = !isThreeLine && block.showGridlines !== false;
+  const showShading = isThreeLine ? block.headerShading === true : block.headerShading !== false;
 
   const BO = { style: BorderStyle.SINGLE, size: 12, color: '000000' };
   const BI = { style: BorderStyle.SINGLE, size: 6, color: '000000' };
@@ -761,14 +787,19 @@ function renderTable(
     children: block.headers.map((h, ci) =>
       new TableCell({
         width: { size: colWidths[ci], type: WidthType.DXA },
-        borders: showGrid ? {
+        borders: isThreeLine ? {
+          top: BO,
+          bottom: BI,
+          left: NO,
+          right: NO,
+        } : (showGrid ? {
           top: BO,
           bottom: BO,
           left: ci === 0 ? BO : BI,
           right: ci === colCount - 1 ? BO : BI,
         } : {
           top: NO, bottom: NO, left: NO, right: NO,
-        },
+        }),
         shading: showShading ? { fill: 'D9D9D9', type: ShadingType.SOLID, color: 'auto' } : undefined,
         children: [
           new Paragraph({
@@ -788,14 +819,19 @@ function renderTable(
       children: block.headers.map((_, ci) =>
         new TableCell({
           width: { size: colWidths[ci], type: WidthType.DXA },
-          borders: showGrid ? {
+          borders: isThreeLine ? {
+            top: NO,
+            bottom: isLast ? BO : NO,
+            left: NO,
+            right: NO,
+          } : (showGrid ? {
             top: BI,
             bottom: isLast ? BO : BI,
             left: ci === 0 ? BO : BI,
             right: ci === colCount - 1 ? BO : BI,
           } : {
             top: NO, bottom: NO, left: NO, right: NO,
-          },
+          }),
           children: [
             new Paragraph({
               children: [styledRun(row[ci] ?? '', bodyStyle)],
@@ -812,13 +848,16 @@ function renderTable(
     // Declare the same total the cells declare; a 100% table width alongside
     // absolute cell widths is contradictory OOXML.
     width: { size: tableWidth, type: WidthType.DXA },
-    borders: showGrid ? {
+    borders: isThreeLine ? {
+      top: BO, bottom: BO, left: NO, right: NO,
+      insideHorizontal: NO, insideVertical: NO,
+    } : (showGrid ? {
       top: BO, bottom: BO, left: BO, right: BO,
       insideHorizontal: BI, insideVertical: BI,
     } : {
       top: NO, bottom: NO, left: NO, right: NO,
       insideHorizontal: NO, insideVertical: NO,
-    },
+    }),
     rows: [headerRow, ...dataRows],
   });
 
@@ -1415,6 +1454,24 @@ function renderThesisParts(
           text: `[${ref.id}] ${ref.text}`,
         }, undefined, 'reference_item'),
       ),
+    );
+  }
+
+  if (doc.backMatter?.appendices && doc.backMatter.appendices.length > 0) {
+    bodyChildren.push(...processBlocks(flattenSections(doc.backMatter.appendices), template, contentDir, undefined, state));
+  }
+
+  if (doc.backMatter?.authorBiography) {
+    bodyChildren.push(
+      renderHeading(template, { type: 'heading1', text: '作者简历及在学期间取得的成果', styleRole: 'section_heading' }),
+      renderParagraph(template, { type: 'paragraph', text: doc.backMatter.authorBiography }),
+    );
+  }
+
+  if (doc.backMatter?.declaration) {
+    bodyChildren.push(
+      renderHeading(template, { type: 'heading1', text: '独创性说明', styleRole: 'section_heading' }),
+      renderParagraph(template, { type: 'paragraph', text: doc.backMatter.declaration }),
     );
   }
 

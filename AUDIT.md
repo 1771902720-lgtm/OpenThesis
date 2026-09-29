@@ -150,7 +150,7 @@ what remains outside this table.
 | `markdown-parser` | Emphasis requires real delimiters (no intraword `_`, no space-flanked `*`); only tag-shaped `<…>` is stripped and autolinks keep their target. Heading closing-hash requires a space. Front-matter block sequences. Quote-aware list splitting. Single-column tables. Extended fence info strings. List level derived from the marker column. |
 | `assets/ustb-thesis-template.json` | Regenerated from `《北京科技大学硕士学位论文模板》.docx` with the fixed parser: 72 of 72 styles carry formatting (was 0), and `roleWinners` records which style drives each role. Verified attribute by attribute against `《北京科技大学研究生学位论文书写指南》` — see §5. |
 
-Test count: **29 → 99**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
+Test count: **29 → 119**, all passing. `pnpm audit --prod --audit-level high` now exits 0.
 
 ---
 
@@ -255,6 +255,10 @@ Measured against two authorities: `《北京科技大学研究生学位论文书
 | 封面三级样式 | `cover_title` / `cover_line` / `cover_meta` resolve from the template: 小二 18pt bold centred, 四号 14pt bold justified, 五号 10.5pt |
 | 目录 | a `type: "toc"` section emits the 目录 heading plus a real `TOC \h \o "1-3"` field |
 | 装订线 1cm + 对称页边距 | `w:gutter="567"` and `w:mirrorMargins`; the accepted thesis alternates 4.00/3.00 cm columns. `w:mirrorMargins` is read from `settings.xml`, where it is actually declared |
+| 三线表 (Three-line tables) | 学术论文表格默认输出标准三线表：顶底线 1.5pt，表头下线 0.75pt，无内外竖线，无表头底纹 |
+| 公式编号靠右对齐 | 公式行居中，编号 `(X-Y)` 通过双制表位靠齐页面右边距（8504 twips） |
+| 后置部分完整渲染 | `backMatter` 完整渲染 `references`、`declaration` (独创性说明)、`authorBiography` (作者简历及成果) 与 `appendices` |
+| Markdown 封面生成 | Markdown front-matter 元数据自动生成带有 `cover_title`、`cover_line`、`cover_meta` 的北科大标准封面 |
 
 **One step stays manual.** The directory page numbers come from the `TOC` field,
 which only Word can evaluate: after `thesis build`, open the document and update
@@ -278,7 +282,7 @@ engine, so it cannot know on which page a chapter lands.
    `1.1`, `2.3.3`; the renderer emits real list numbering for lists but not for
    headings, so a heading's number is whatever the content JSON says.
 5. **Not expressible at all** (needs Word, documented rather than attempted):
-   rasterised auto-numbers, right-aligned equation numbers, TOC dot leaders,
+   rasterised auto-numbers, TOC dot leaders,
    and English caption/title lines as separate styles.
 6. **`w:docGrid`.** The template snaps text to a 312-twip line grid
    (`type="linesAndChars"` in the body); the writer library emits its own

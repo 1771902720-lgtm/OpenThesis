@@ -830,3 +830,80 @@ test('turns on titlePg for a template that references a first-page head', async 
   const headers = await runningHeadTexts(zip, 'header');
   assert.ok(headers.some(part => part.text === '内部资料'));
 });
+
+test('academic tables default to standard 三线表 (three-line tables)', async () => {
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Three line table' }, cover: [],
+      sections: [{
+        id: 'c1', type: 'chapter', title: 'Chapter',
+        content: [{
+          type: 'table', caption: 'Test Table',
+          headers: ['A', 'B'],
+          data: [['1', '2'], ['3', '4']],
+        }],
+      }],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+
+  // Table borders: top 1.5pt (12), bottom 1.5pt (12), no left/right/inside verticals
+  assert.match(xml, /<w:tblBorders><w:top w:val="single" w:color="000000" w:sz="12"\/>/);
+  assert.match(xml, /<w:left w:val="none" w:color="FFFFFF" w:sz="0"\/>/);
+  assert.match(xml, /<w:bottom w:val="single" w:color="000000" w:sz="12"\/>/);
+  assert.match(xml, /<w:right w:val="none" w:color="FFFFFF" w:sz="0"\/>/);
+  assert.match(xml, /<w:insideV w:val="none" w:color="FFFFFF" w:sz="0"\/>/);
+
+  // Header bottom border: 0.75pt (6)
+  assert.match(xml, /<w:bottom w:val="single" w:color="000000" w:sz="6"\/>/);
+
+  // No gray header shading by default
+  assert.doesNotMatch(xml, /w:fill="D9D9D9"/);
+});
+
+test('numbered equations place equation in center and number right-aligned via tab stops', async () => {
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Equation Tab Stops' }, cover: [],
+      sections: [{
+        id: 'c1', type: 'chapter', title: 'Chapter',
+        content: [{
+          type: 'equation_numbered',
+          latex: 'E = mc^2',
+          number: '1-1',
+        }],
+      }],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+
+  // Tab stops: center tab at page middle, right tab at page right margin
+  assert.match(xml, /<w:tabs><w:tab w:val="center" w:pos="\d+"\s*\/><w:tab w:val="right" w:pos="\d+"\s*\/><\/w:tabs>/);
+  // Left alignment so tabs function properly
+  assert.match(xml, /<w:jc w:val="left"\/>/);
+  // Tab-separated equation and right-aligned number
+  assert.match(xml, /<w:t xml:space="preserve">\s*<\/w:t><\/w:r><m:oMath>/);
+  assert.match(xml, /<w:t xml:space="preserve">\t\(1-1\)<\/w:t>/);
+});
+
+test('renders declaration and authorBiography in backMatter', async () => {
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'BackMatter' }, cover: [],
+      sections: [{ id: 'c1', type: 'chapter', title: 'Chapter', content: [] }],
+      backMatter: {
+        declaration: '本人郑重声明，所呈交的学位论文是本人在导师指导下进行的研究工作及取得的研究成果。',
+        authorBiography: '张三，男，1998年生。在学期间发表论文1篇。',
+      },
+    },
+  });
+  const { xml } = await documentXml(buffer);
+
+  assert.match(xml, /独创性说明/);
+  assert.match(xml, /本人郑重声明/);
+  assert.match(xml, /作者简历及在学期间取得的成果/);
+  assert.match(xml, /在学期间发表论文/);
+});
