@@ -321,21 +321,7 @@ function renderHeading(
   const style = resolveStyle(template, block.styleRole ?? block.type, docType);
   const numberPrefix = block.number ? `${block.number}  ` : '';
   return new Paragraph({
-    children: [
-      new TextRun({
-        text: numberPrefix + block.text,
-        bold: style.font.bold,
-        size: style.font.size,
-        font: {
-          ascii: style.font.name,
-          hAnsi: style.font.name,
-          eastAsia: style.font.eastAsia,
-          cs: style.font.name,
-        },
-        italics: style.font.italic,
-        color: style.font.color,
-      }),
-    ],
+    children: styledRuns(numberPrefix + block.text, style, style.font.bold),
     alignment: mapAlignment(style.paragraph.alignment),
     // Headings carry the guide's hanging indent (0.75 / 1 / 1.25 cm); this
     // paragraph never emitted an indent at all, so it was dropped silently.
@@ -359,21 +345,7 @@ function renderParagraph(
 ): Paragraph {
   const style = resolveStyle(template, role, docType);
   return new Paragraph({
-    children: [
-      new TextRun({
-        text: block.text,
-        size: style.font.size,
-        font: {
-          ascii: style.font.name,
-          hAnsi: style.font.name,
-          eastAsia: style.font.eastAsia,
-          cs: style.font.name,
-        },
-        bold: style.font.bold,
-        italics: style.font.italic,
-        color: style.font.color,
-      }),
-    ],
+    children: styledRuns(block.text, style),
     alignment: mapAlignment(style.paragraph.alignment),
     indent: indentOf(style),
     spacing: {
@@ -395,19 +367,7 @@ function renderCenteredText(
     : style.font.size;
   const actualBold = block.bold !== undefined ? block.bold : style.font.bold;
   return new Paragraph({
-    children: [
-      new TextRun({
-        text: block.text,
-        size: actualSize,
-        bold: actualBold,
-        font: {
-          ascii: style.font.name,
-          hAnsi: style.font.name,
-          eastAsia: style.font.eastAsia,
-          cs: style.font.name,
-        },
-      }),
-    ],
+    children: styledRuns(block.text, style, actualBold, actualSize),
     // The cover's own styles decide the alignment: 校名行 is centred while the
     // 研究生/指导教师 rows are justified rows. Hardcoding centre ignored them.
     alignment: mapAlignment(style.paragraph.alignment) ?? AlignmentType.CENTER,
@@ -676,13 +636,18 @@ function mathNary(operator: string, subScript?: LatexMathNode[], superScript?: L
 }
 
 /** Build a run that inherits the resolved style's font settings. */
-function styledRun(text: string, style: ParagraphStyle, forceBold?: boolean): TextRun {
+function styledRun(
+  text: string,
+  style: ParagraphStyle,
+  forceBold?: boolean,
+  customSize?: number,
+): TextRun {
   return new TextRun({
     text,
     bold: forceBold ?? style.font.bold,
     italics: style.font.italic,
     color: style.font.color,
-    size: style.font.size,
+    size: customSize ?? style.font.size,
     font: {
       ascii: style.font.name,
       hAnsi: style.font.name,
@@ -690,6 +655,47 @@ function styledRun(text: string, style: ParagraphStyle, forceBold?: boolean): Te
       cs: style.font.name,
     },
   });
+}
+
+/**
+ * Parse text into runs, converting inline LaTeX math (`$ ... $`)
+ * into native Office Math (`DocxMath`) elements.
+ */
+function styledRuns(
+  text: string,
+  style: ParagraphStyle,
+  forceBold?: boolean,
+  customSize?: number,
+): (TextRun | DocxMath)[] {
+  if (!text.includes('$')) {
+    return [styledRun(text, style, forceBold, customSize)];
+  }
+
+  const runs: (TextRun | DocxMath)[] = [];
+  // Match inline math $...$ that does not span newlines and is not escaped by \$
+  const regex = /(?<!\\)\$(?!\s)([^$\n]+?)(?<![\s\\])\$/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      runs.push(styledRun(text.slice(lastIndex, match.index), style, forceBold, customSize));
+    }
+    const mathLatex = match[1].trim();
+    try {
+      const ast = latexToMathAst(mathLatex);
+      runs.push(new DocxMath({ children: mathComponents(ast) }));
+    } catch {
+      runs.push(styledRun(`$${mathLatex}$`, style, forceBold, customSize));
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    runs.push(styledRun(text.slice(lastIndex), style, forceBold, customSize));
+  }
+
+  return runs.length > 0 ? runs : [styledRun(text, style, forceBold, customSize)];
 }
 
 /**
@@ -771,7 +777,7 @@ function renderTable(
   const captionValue = captionText(block.number, block.caption);
   const captionPara = captionValue
     ? new Paragraph({
-        children: [styledRun(captionValue, captionStyle, true)],
+        children: styledRuns(captionValue, captionStyle, true),
         alignment: mapAlignment(captionStyle.paragraph.alignment),
         spacing: {
           before: captionStyle.paragraph.spaceBefore,
@@ -803,7 +809,7 @@ function renderTable(
         shading: showShading ? { fill: 'D9D9D9', type: ShadingType.SOLID, color: 'auto' } : undefined,
         children: [
           new Paragraph({
-            children: [styledRun(h, headerStyle, true)],
+            children: styledRuns(h, headerStyle, true),
             alignment: mapAlignment(headerStyle.paragraph.alignment),
             spacing: { before: 40, after: 40, line: headerStyle.lineSpacing },
           }),
@@ -834,7 +840,7 @@ function renderTable(
           }),
           children: [
             new Paragraph({
-              children: [styledRun(row[ci] ?? '', bodyStyle)],
+              children: styledRuns(row[ci] ?? '', bodyStyle),
               alignment: mapAlignment(bodyStyle.paragraph.alignment),
               spacing: { before: 20, after: 20, line: bodyStyle.lineSpacing },
             }),
@@ -994,7 +1000,7 @@ function renderFigure(
       // for 0.1 行). The run used to be `${number}  ${caption}` with two spaces and
       // a hardcoded 段后 120.
       const caption = new Paragraph({
-        children: [styledRun(captionText(block.number, block.caption), captionStyle)],
+        children: styledRuns(captionText(block.number, block.caption), captionStyle),
         alignment: mapAlignment(captionStyle.paragraph.alignment),
         spacing: {
           before: captionStyle.paragraph.spaceBefore,
@@ -1215,7 +1221,7 @@ function renderListItem(
 ): Paragraph {
   const level = Math.min(Math.max(0, block.level ?? 0), MAX_LIST_LEVEL);
   return new Paragraph({
-    children: [styledRun(block.text, style)],
+    children: styledRuns(block.text, style),
     // The marker is generated by Word, so `block.marker` is only a hint for
     // text-only consumers and is intentionally not rendered here.
     numbering: {
@@ -1248,13 +1254,13 @@ function renderCodeBlock(block: CodeBlockBlock): Paragraph {
 }
 
 function renderBlockquote(block: BlockquoteBlock): Paragraph {
+  const quoteStyle: ParagraphStyle = {
+    font: { name: 'Times New Roman', eastAsia: '宋体', size: 24, italic: true },
+    paragraph: { alignment: 'left' },
+    lineSpacing: 312,
+  };
   return new Paragraph({
-    children: [new TextRun({
-      text: block.text,
-      italics: true,
-      size: 24,
-      font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: '宋体', cs: 'Times New Roman' },
-    })],
+    children: styledRuns(block.text, quoteStyle),
     indent: { left: 480, right: 240 },
     border: { left: { style: BorderStyle.SINGLE, size: 12, color: '808080' } },
     spacing: { before: 120, after: 120, line: 312 },

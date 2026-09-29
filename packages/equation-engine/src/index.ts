@@ -122,7 +122,9 @@ const PLAIN_TEXT_SYMBOLS: Record<string, string> = {
   infty: '∞', partial: '∂', nabla: '∇',
   propto: '∝', prod: 'Π', sum: 'Σ', int: '∫',
   times: '×', cdot: '·', pm: '±', mp: '∓',
-  leq: '≤', geq: '≥', neq: '≠', approx: '≈',
+  le: '≤', ge: '≥', leq: '≤', geq: '≥', ne: '≠', neq: '≠', approx: '≈',
+  in: '∈', notin: '∉', ni: '∋',
+  subset: '⊂', supset: '⊃', subseteq: '⊆', supseteq: '⊇',
   equiv: '≡', sim: '∼', parallel: '∥', perp: '⊥',
   sqrt: '√',
 };
@@ -422,7 +424,7 @@ class LatexMathParser {
       // parser dropped them, so `\text{if } x>0` rendered as "ifx>0".
       return [{ type: 'run', text: this.readRequiredGroupText(false) }];
     }
-    if (command === 'mathrm' || command === 'mathbf' || command === 'mathit') {
+    if (command === 'mathrm' || command === 'mathbf' || command === 'mathit' || command === 'boldsymbol' || command === 'bm') {
       return this.parseRequiredGroup();
     }
     if (command === ',' || command === ':' || command === ';' || command === 'quad') {
@@ -606,9 +608,16 @@ const MATH_SYMBOLS: Record<string, string> = {
   lambda: 'λ', mu: 'μ', nu: 'ν', xi: 'ξ', pi: 'π', rho: 'ρ', sigma: 'σ',
   tau: 'τ', upsilon: 'υ', phi: 'φ', varphi: 'φ', chi: 'χ', psi: 'ψ', omega: 'ω',
   infinity: '∞', infty: '∞', partial: '∂', nabla: '∇', prod: '∏',
-  propto: '∝', times: '×', cdot: '·', pm: '±', mp: '∓', leq: '≤', geq: '≥',
-  neq: '≠', approx: '≈', equiv: '≡', sim: '∼', parallel: '∥', perp: '⊥',
+  propto: '∝', times: '×', cdot: '·', pm: '±', mp: '∓', div: '÷',
+  ast: '∗', star: '⋆', circ: '∘', bullet: '•',
+  le: '≤', ge: '≥', leq: '≤', geq: '≥', ne: '≠', neq: '≠', approx: '≈',
+  in: '∈', notin: '∉', ni: '∋',
+  subset: '⊂', supset: '⊃', subseteq: '⊆', supseteq: '⊇',
+  cap: '∩', cup: '∪', forall: '∀', exists: '∃', neg: '¬',
+  ll: '≪', gg: '≫',
+  equiv: '≡', sim: '∼', parallel: '∥', perp: '⊥',
   to: '→', rightarrow: '→', leftarrow: '←', Rightarrow: '⇒', Leftarrow: '⇐',
+  leftrightarrow: '↔', Leftrightarrow: '⇔',
   ldots: '…', cdots: '⋯', ell: 'ℓ', hbar: 'ℏ', Re: 'ℜ', Im: 'ℑ',
 };
 
@@ -616,6 +625,7 @@ const FUNCTION_COMMANDS = new Set([
   'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
   'sinh', 'cosh', 'tanh', 'log', 'ln', 'exp',
   'det', 'gcd', 'ker', 'arg', 'deg', 'dim', 'hom',
+  'sgn', 'diag', 'rank', 'tr',
 ]);
 
 const LIMIT_COMMANDS = new Set(['lim', 'min', 'max', 'inf', 'sup']);

@@ -907,3 +907,32 @@ test('renders declaration and authorBiography in backMatter', async () => {
   assert.match(xml, /作者简历及在学期间取得的成果/);
   assert.match(xml, /在学期间发表论文/);
 });
+
+test('renders inline LaTeX math as native Office Math (OMML) within paragraphs', async () => {
+  const buffer = await renderDocument({
+    outputPath: '', template,
+    document: {
+      type: 'thesis', meta: { title: 'Inline math' }, cover: [],
+      sections: [{
+        id: 'c1', type: 'chapter', title: 'Chapter',
+        content: [{
+          type: 'paragraph',
+          text: '时间步长 $\\Delta t_{\\text{cr}}$ 与矩阵 $\\mathbf{M}$，以及式中 $K_{ij}$ 为节点 $i$。',
+        }],
+      }],
+    },
+  });
+  const { xml } = await documentXml(buffer);
+
+  // Contains both text runs and inline Office Math
+  assert.match(xml, /<w:t xml:space="preserve">时间步长 <\/w:t>/);
+  assert.match(xml, /<m:oMath>/);
+  assert.match(xml, /<m:t>Δ<\/m:t>/);
+  assert.match(xml, /<m:t>cr<\/m:t>/);
+  assert.match(xml, /<m:t>M<\/m:t>/);
+  assert.match(xml, /<m:t>ij<\/m:t>/);
+  // Ensure the raw dollar signs and raw LaTeX code are NOT emitted as literal text
+  assert.doesNotMatch(xml, /\\Delta/);
+  assert.doesNotMatch(xml, /\\mathbf/);
+  assert.doesNotMatch(xml, /\$K_\{ij\}\$/);
+});
