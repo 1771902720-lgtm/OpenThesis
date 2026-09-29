@@ -13,7 +13,7 @@ import {
   convertMillimetersToTwip, Packer,
   ImageRun,
   Math as DocxMath, MathRun, MathFraction, MathRadical, MathSuperScript,
-  MathSubScript, MathSubSuperScript, MathSum, MathIntegral,
+  MathSubScript, MathSubSuperScript,
   MathFunction, MathLimitLower, MathLimitUpper, BuilderElement,
   TableOfContents, TabStopType,
 } from 'docx';
@@ -467,19 +467,17 @@ function mathComponents(nodes: LatexMathNode[]): MathComponent[] {
         return new MathSuperScript({ children: base, superScript: mathComponents(node.superScript ?? []) });
       }
       case 'sum':
-        return new MathSum({
-          children: [new MathRun('')],
-          subScript: node.subScript ? mathComponents(node.subScript) : undefined,
-          superScript: node.superScript ? mathComponents(node.superScript) : undefined,
-        });
+        return (!node.subScript && !node.superScript)
+          ? new MathRun('∑')
+          : mathNary('∑', node.subScript, node.superScript);
       case 'integral':
-        return new MathIntegral({
-          children: [new MathRun('')],
-          subScript: node.subScript ? mathComponents(node.subScript) : undefined,
-          superScript: node.superScript ? mathComponents(node.superScript) : undefined,
-        });
+        return (!node.subScript && !node.superScript)
+          ? new MathRun('∫')
+          : mathNary('∫', node.subScript, node.superScript);
       case 'nary':
-        return mathNary(node.operator, node.subScript, node.superScript);
+        return (!node.subScript && !node.superScript)
+          ? new MathRun(node.operator)
+          : mathNary(node.operator, node.subScript, node.superScript);
       case 'accent':
         return mathAccent(node.accent, node.children);
       case 'bar':

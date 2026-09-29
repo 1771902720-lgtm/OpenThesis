@@ -476,7 +476,7 @@ test('styles the cover from the template, one tier at a time', async () => {
 
   const line = para('研究生  张三');
   assert.match(line, /<w:sz w:val="28"\/>/);        // 四号
-  assert.match(line, /<w:jc w:val="both"\/>/);      // the guide's 两端对齐 row
+  assert.match(line, /<w:jc w:val="center"\/>/);    // centered cover metadata row
 
   const meta = para('中图分类号：TU3');
   assert.match(meta, /<w:sz w:val="21"\/>/);        // 五号

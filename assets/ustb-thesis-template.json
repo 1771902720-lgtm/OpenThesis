@@ -1262,7 +1262,7 @@
         "bold": true
       },
       "paragraph": {
-        "alignment": "justified"
+        "alignment": "center"
       },
       "lineSpacing": 360
     },

@@ -404,6 +404,17 @@ class LatexMathParser {
         under: command === 'underset' ? annotation : undefined,
       }];
     }
+    if (command === 'xrightarrow' || command === 'xleftarrow') {
+      const under = this.parseOptionalGroup('[', ']');
+      const over = this.parseRequiredGroup();
+      const arrow = command === 'xrightarrow' ? '→' : '←';
+      return [{
+        type: 'overUnder',
+        base: [{ type: 'run', text: arrow }],
+        over,
+        under,
+      }];
+    }
     if (command in ACCENT_COMMANDS) {
       return [{ type: 'accent', accent: ACCENT_COMMANDS[command], children: this.parseRequiredGroup() }];
     }
